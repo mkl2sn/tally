@@ -131,3 +131,10 @@ export function cardNumericValue(card: string): number | null {
 	const n = Number(card);
 	return Number.isFinite(n) && card.trim() !== '' ? n : null;
 }
+
+export function countdownDisplaySeconds(msRemaining: number): number {
+	return Math.min(
+		Math.ceil(REVEAL_COUNTDOWN_MS / 1000),
+		Math.max(1, Math.ceil(msRemaining / 1000))
+	);
+}
