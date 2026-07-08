@@ -33,9 +33,9 @@ Es fehlt nur die Einrichtung auf Cloudflare- und GitHub-Seite.
 
 Repo → Settings → Secrets and variables → Actions:
 
-| Secret | Wert |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | Token aus Schritt 4 |
+| Secret                  | Wert                     |
+| ----------------------- | ------------------------ |
+| `CLOUDFLARE_API_TOKEN`  | Token aus Schritt 4      |
 | `CLOUDFLARE_ACCOUNT_ID` | Account-ID aus Schritt 3 |
 
 Oder per CLI:
