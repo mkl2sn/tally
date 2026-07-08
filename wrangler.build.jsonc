@@ -1,0 +1,14 @@
+// Build-only config consumed by @sveltejs/adapter-cloudflare (see vite.config.ts).
+// The adapter writes the generated SvelteKit worker to `main` below. The real
+// deploy config is wrangler.jsonc, whose entry (src/worker.ts) wraps this worker
+// and adds the PokerRoom Durable Object.
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "tally",
+	"compatibility_date": "2026-07-08",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	}
+}

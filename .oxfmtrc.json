@@ -1,0 +1,15 @@
+{
+	"useTabs": true,
+	"singleQuote": true,
+	"trailingComma": "none",
+	"printWidth": 100,
+	"sortTailwindcss": {
+		"stylesheet": "./src/routes/layout.css"
+	},
+	"ignorePatterns": [
+		".svelte-kit/**",
+		".wrangler/**",
+		"worker-configuration.d.ts",
+		"pnpm-lock.yaml"
+	]
+}

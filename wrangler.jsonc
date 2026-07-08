@@ -1,0 +1,30 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "tally",
+	"compatibility_date": "2026-07-08",
+	"compatibility_flags": ["nodejs_als"],
+	"main": "src/worker.ts",
+	"alias": {
+		"sveltekit-worker": "./.svelte-kit/cloudflare/_worker.js"
+	},
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "POKER_ROOM",
+				"class_name": "PokerRoom"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["PokerRoom"]
+		}
+	],
+	"workers_dev": true,
+	"preview_urls": true
+}

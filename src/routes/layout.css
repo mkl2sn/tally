@@ -1,0 +1,221 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/outfit';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+	--color-surface: var(--surface);
+	--color-panel: var(--panel);
+	--color-ink: var(--ink);
+	--color-muted: var(--muted);
+	--color-line: var(--line);
+	--color-accent: var(--accent);
+	--color-accent-hover: var(--accent-hover);
+	--color-accent-soft: var(--accent-soft);
+	--color-accent-ink: var(--accent-ink);
+	--color-danger: var(--danger);
+	--font-sans: 'Outfit Variable', system-ui, sans-serif;
+}
+
+:root {
+	--surface: #ffffff;
+	--panel: #f5f5f8;
+	--ink: #17171d;
+	--muted: #6e6e7a;
+	--line: #e6e6ec;
+	--accent: #5a4ff0;
+	--accent-hover: #4c41e0;
+	--accent-soft: #efedfe;
+	--accent-ink: #ffffff;
+	--danger: #d92d20;
+}
+
+.dark {
+	--surface: #141419;
+	--panel: #1e1e26;
+	--ink: #ededf2;
+	--muted: #9a9aa8;
+	--line: #2b2b36;
+	--accent: #7d73f8;
+	--accent-hover: #8f86fa;
+	--accent-soft: #26234a;
+	--accent-ink: #141419;
+	--danger: #f97066;
+}
+
+body {
+	background: var(--surface);
+	color: var(--ink);
+	font-family: var(--font-sans);
+}
+
+/* Tailwind v4 preflight resets buttons to cursor: default; anything clickable gets a pointer. */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+label:has(input[type='checkbox']),
+summary {
+	cursor: pointer;
+}
+
+@layer components {
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		border-radius: 999px;
+		padding: 0.625rem 1.375rem;
+		font-weight: 600;
+		white-space: nowrap;
+		cursor: pointer;
+		transition:
+			background-color 0.15s,
+			border-color 0.15s,
+			color 0.15s;
+	}
+	.btn:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+	.btn:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
+	.btn-primary {
+		background: var(--accent);
+		color: var(--accent-ink);
+	}
+	.btn-primary:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
+	.btn-secondary {
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--ink);
+	}
+	.btn-secondary:hover:not(:disabled) {
+		background: var(--panel);
+	}
+	.btn-sm {
+		padding: 0.375rem 0.875rem;
+		font-size: 0.875rem;
+	}
+	.btn-icon {
+		padding: 0.5rem;
+	}
+
+	.field {
+		width: 100%;
+		border-radius: 0.75rem;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		padding: 0.625rem 0.875rem;
+	}
+	.field:focus {
+		border-color: var(--accent);
+		outline: 3px solid color-mix(in srgb, var(--accent) 20%, transparent);
+	}
+	.field::placeholder {
+		color: color-mix(in srgb, var(--muted) 65%, transparent);
+	}
+}
+
+/* Face-down cards: tally strokes on blurple. */
+.card-back-tally {
+	background-color: var(--accent);
+	background-image: repeating-linear-gradient(
+		90deg,
+		transparent 0 5px,
+		color-mix(in srgb, var(--accent-ink) 40%, transparent) 5px 7px
+	);
+}
+
+/* 3D flip for seat cards */
+.flip-scene {
+	perspective: 600px;
+}
+.flip-inner {
+	transform-style: preserve-3d;
+	transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.3, 1.1);
+}
+.flip-inner.flipped {
+	transform: rotateY(180deg);
+}
+.flip-front,
+.flip-back {
+	backface-visibility: hidden;
+}
+.flip-back {
+	transform: rotateY(180deg);
+}
+
+@keyframes deal-in {
+	from {
+		opacity: 0;
+		transform: translateY(10px) scale(0.96);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+.deal-in {
+	animation: deal-in 0.25s ease-out both;
+}
+
+@keyframes pulse-count {
+	0% {
+		transform: scale(1.25);
+		opacity: 0.4;
+	}
+	20% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+.pulse-count {
+	animation: pulse-count 1s ease-out both;
+}
+
+/* Modal open/close */
+@keyframes overlay-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+/* Scale only: centering comes from the translate utilities, which
+   Tailwind v4 applies via the separate `translate` property. */
+@keyframes modal-in {
+	from {
+		opacity: 0;
+		transform: scale(0.96);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+.modal-overlay {
+	animation: overlay-in 0.15s ease-out both;
+}
+.modal-content {
+	animation: modal-in 0.18s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.flip-inner,
+	.deal-in,
+	.pulse-count,
+	.modal-overlay,
+	.modal-content {
+		animation: none;
+		transition: none;
+	}
+}
