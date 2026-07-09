@@ -4,15 +4,15 @@ The wizard has completed a deep integration of PostHog analytics into Tally, a r
 
 ## Events instrumented
 
-| Event name | Description | File |
-|---|---|---|
-| `game_created` | User creates a new planning poker game room from the home page. | `src/routes/+page.svelte` |
-| `game_joined` | User joins an existing game room by submitting their name on the join screen. | `src/routes/room/[id]/+page.svelte` |
-| `vote_cast` | Player selects a card to cast their vote during a voting round. | `src/routes/room/[id]/+page.svelte` |
-| `cards_revealed` | Cards are revealed to all players, ending the current voting phase. | `src/routes/room/[id]/+page.svelte` |
-| `new_round_started` | A new voting round is started after cards have been revealed. | `src/routes/room/[id]/+page.svelte` |
-| `invite_link_copied` | User copies the room invite link to share with teammates. | `src/routes/room/[id]/+page.svelte` |
-| `room_created` | Server-side: a new poker room is successfully initialized via the API. | `src/routes/api/rooms/+server.ts` |
+| Event name           | Description                                                                   | File                                |
+| -------------------- | ----------------------------------------------------------------------------- | ----------------------------------- |
+| `game_created`       | User creates a new planning poker game room from the home page.               | `src/routes/+page.svelte`           |
+| `game_joined`        | User joins an existing game room by submitting their name on the join screen. | `src/routes/room/[id]/+page.svelte` |
+| `vote_cast`          | Player selects a card to cast their vote during a voting round.               | `src/routes/room/[id]/+page.svelte` |
+| `cards_revealed`     | Cards are revealed to all players, ending the current voting phase.           | `src/routes/room/[id]/+page.svelte` |
+| `new_round_started`  | A new voting round is started after cards have been revealed.                 | `src/routes/room/[id]/+page.svelte` |
+| `invite_link_copied` | User copies the room invite link to share with teammates.                     | `src/routes/room/[id]/+page.svelte` |
+| `room_created`       | Server-side: a new poker room is successfully initialized via the API.        | `src/routes/api/rooms/+server.ts`   |
 
 ## Files created or modified
 

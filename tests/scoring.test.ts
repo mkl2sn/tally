@@ -162,9 +162,7 @@ describe('voteSpread', () => {
 	});
 
 	it('is null when both extremes are shared', () => {
-		expect(
-			voteSpread([{ card: '5' }, { card: '5' }, { card: '13' }, { card: '13' }])
-		).toBeNull();
+		expect(voteSpread([{ card: '5' }, { card: '5' }, { card: '13' }, { card: '13' }])).toBeNull();
 	});
 
 	it('is null when everyone agrees', () => {
