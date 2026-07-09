@@ -253,6 +253,39 @@ describe('PokerRoom', () => {
 		alice.close();
 	});
 
+	it('lets the moderator remove a player and blocks their return', async () => {
+		const stub = await createRoom('room-kick', { moderated: true });
+		const alice = await join(stub, 'Alice');
+		const aliceId = (await alice.nextState()).you;
+		const bob = await join(stub, 'Bob');
+		const bobId = (await bob.nextState()).you;
+		await alice.nextState(); // bob joined
+
+		// A non-moderator cannot kick: Bob's attempt is ignored (no broadcast).
+		bob.send({ type: 'kick', playerId: aliceId });
+		alice.send({ type: 'setRoomName', name: 'Still here' });
+		const kept = await alice.nextState();
+		expect(kept.roomName).toBe('Still here');
+		expect(kept.players).toHaveLength(2);
+		await bob.nextState();
+
+		// The moderator removes Bob: he is dropped and told why.
+		alice.send({ type: 'kick', playerId: bobId });
+		const bobMsg = await bob.next();
+		expect(bobMsg.type).toBe('error');
+		const afterKick = await alice.nextState();
+		expect(afterKick.players).toHaveLength(1);
+		expect(afterKick.players[0].name).toBe('Alice');
+
+		// Bob cannot rejoin with his old identity.
+		const res = await stub.fetch('https://test/ws', { headers: { Upgrade: 'websocket' } });
+		const ghost = new TestClient(res.webSocket!);
+		ghost.send({ type: 'join', name: 'Bob', role: 'player', playerId: bobId, secret: 'stale' });
+		expect((await ghost.next()).type).toBe('error');
+
+		alice.close();
+	});
+
 	it('starts a new round and keeps history', async () => {
 		const stub = await createRoom('room-newround');
 		const alice = await join(stub, 'Alice');

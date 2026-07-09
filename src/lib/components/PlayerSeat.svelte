@@ -12,7 +12,8 @@
 		isYou,
 		outlier = null,
 		canMakeModerator = false,
-		onmakemoderator
+		onmakemoderator,
+		onkick
 	}: {
 		player: PlayerView;
 		revealed: boolean;
@@ -20,6 +21,7 @@
 		outlier?: 'high' | 'low' | null;
 		canMakeModerator?: boolean;
 		onmakemoderator?: () => void;
+		onkick?: () => void;
 	} = $props();
 
 	const flipped = $derived(revealed && player.vote !== null);
@@ -63,7 +65,7 @@
 				<IconCrown class="size-4" aria-label="Moderator" />
 			</span>
 		{/if}
-		{#if canMakeModerator}
+		{#if canMakeModerator || onkick}
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger
 					class="max-w-full cursor-pointer truncate underline-offset-2 hover:text-accent hover:underline {isYou
@@ -77,12 +79,22 @@
 						sideOffset={6}
 						class="z-50 min-w-36 rounded-xl border border-line bg-surface p-1 shadow-lg"
 					>
-						<DropdownMenu.Item
-							class="cursor-pointer rounded-lg px-3 py-2 text-sm data-highlighted:bg-panel"
-							onSelect={onmakemoderator}
-						>
-							Make moderator
-						</DropdownMenu.Item>
+						{#if canMakeModerator}
+							<DropdownMenu.Item
+								class="cursor-pointer rounded-lg px-3 py-2 text-sm data-highlighted:bg-panel"
+								onSelect={onmakemoderator}
+							>
+								Make moderator
+							</DropdownMenu.Item>
+						{/if}
+						{#if onkick}
+							<DropdownMenu.Item
+								class="cursor-pointer rounded-lg px-3 py-2 text-sm text-danger data-highlighted:bg-panel"
+								onSelect={onkick}
+							>
+								Remove from game
+							</DropdownMenu.Item>
+						{/if}
 					</DropdownMenu.Content>
 				</DropdownMenu.Portal>
 			</DropdownMenu.Root>

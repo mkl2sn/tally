@@ -102,6 +102,7 @@ export type ClientMessage =
 	| { type: 'setWhoCanReveal'; value: WhoCanReveal }
 	| { type: 'setShowAverage'; value: boolean }
 	| { type: 'transferModerator'; playerId: string }
+	| { type: 'kick'; playerId: string }
 	| { type: 'claimModerator' }
 	| { type: 'openRoom' }
 	| { type: 'startTimer'; seconds: number }
