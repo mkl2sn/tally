@@ -1,0 +1,37 @@
+[
+  {
+    "event_name": "game_created",
+    "event_description": "User creates a new planning poker game room from the home page.",
+    "file": "src/routes/+page.svelte"
+  },
+  {
+    "event_name": "game_joined",
+    "event_description": "User joins an existing game room by submitting their name on the join screen.",
+    "file": "src/routes/room/[id]/+page.svelte"
+  },
+  {
+    "event_name": "vote_cast",
+    "event_description": "Player selects or deselects a card to cast their vote during a voting round.",
+    "file": "src/routes/room/[id]/+page.svelte"
+  },
+  {
+    "event_name": "cards_revealed",
+    "event_description": "Cards are revealed to all players, ending the current voting phase.",
+    "file": "src/routes/room/[id]/+page.svelte"
+  },
+  {
+    "event_name": "new_round_started",
+    "event_description": "A new voting round is started after cards have been revealed.",
+    "file": "src/routes/room/[id]/+page.svelte"
+  },
+  {
+    "event_name": "invite_link_copied",
+    "event_description": "User copies the room invite link to share with teammates.",
+    "file": "src/routes/room/[id]/+page.svelte"
+  },
+  {
+    "event_name": "room_created",
+    "event_description": "Server-side: a new poker room is successfully initialized via the API.",
+    "file": "src/routes/api/rooms/+server.ts"
+  }
+]
