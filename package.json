@@ -1,14 +1,14 @@
 {
-	"name": "pp-app",
+	"name": "tally",
 	"version": "0.0.1",
 	"private": true,
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "wrangler types --check && vite build",
+		"build": "wrangler types && vite build",
 		"preview": "wrangler dev --port 4173",
 		"prepare": "svelte-kit sync || echo ''",
-		"check": "wrangler types --check && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check": "wrangler types && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"gen": "wrangler types",
 		"lint": "oxlint && oxfmt --check .",
@@ -40,5 +40,6 @@
 		"vite": "^8.0.16",
 		"vitest": "^4.1.10",
 		"wrangler": "^4.97.0"
-	}
+	},
+	"packageManager": "pnpm@10.34.4"
 }

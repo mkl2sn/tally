@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardNumericValue } from '../src/lib/protocol';
+import { cardNumericValue, countdownDisplaySeconds } from '../src/lib/protocol';
 import { computeRoundResult } from '../src/lib/scoring';
 
 const DECK = ['0', '½', '1', '2', '3', '5', '8', '13', '?', '☕'];
@@ -17,6 +17,17 @@ describe('cardNumericValue', () => {
 		expect(cardNumericValue('XL')).toBeNull();
 		expect(cardNumericValue('')).toBeNull();
 		expect(cardNumericValue('  ')).toBeNull();
+	});
+});
+
+describe('countdownDisplaySeconds', () => {
+	it('starts a three second countdown at 3 even with slight clock drift', () => {
+		expect(countdownDisplaySeconds(3001)).toBe(3);
+		expect(countdownDisplaySeconds(3000)).toBe(3);
+		expect(countdownDisplaySeconds(2001)).toBe(3);
+		expect(countdownDisplaySeconds(2000)).toBe(2);
+		expect(countdownDisplaySeconds(1001)).toBe(2);
+		expect(countdownDisplaySeconds(1000)).toBe(1);
 	});
 });
 
