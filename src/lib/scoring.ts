@@ -47,9 +47,9 @@ export function computeRoundResult(
  * picked it - a shared extreme is a cluster, not an outlier - so `low`/`high`
  * may individually be null.
  */
-export function voteSpread(
-	votes: { card: string }[]
-): { low: number | null; high: number | null } | null {
+export type VoteSpread = { low: number | null; high: number | null };
+
+export function voteSpread(votes: { card: string }[]): VoteSpread | null {
 	const numeric = votes.map((v) => cardNumericValue(v.card)).filter((n): n is number => n !== null);
 	if (numeric.length < 3) return null;
 	const low = Math.min(...numeric);
@@ -59,4 +59,18 @@ export function voteSpread(
 	const highUnique = numeric.filter((n) => n === high).length === 1;
 	if (!lowUnique && !highUnique) return null;
 	return { low: lowUnique ? low : null, high: highUnique ? high : null };
+}
+
+/**
+ * Classifies a single vote against a spread: 'high'/'low' when it matches a
+ * flagged extreme, otherwise null. Non-numeric cards (?, ☕) never match, even
+ * against a null extreme.
+ */
+export function outlierFor(vote: string | null, spread: VoteSpread | null): 'high' | 'low' | null {
+	if (!spread || vote === null) return null;
+	const value = cardNumericValue(vote);
+	if (value === null) return null;
+	if (value === spread.high) return 'high';
+	if (value === spread.low) return 'low';
+	return null;
 }
