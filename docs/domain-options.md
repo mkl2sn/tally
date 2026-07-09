@@ -10,20 +10,20 @@ Kerbholz (tally stick). Passt zum Auszählen der Stimmen pro Planning-Poker-Rund
 
 ## Verfügbare Domains
 
-| Domain | Preis/Jahr ca. | Einschätzung |
-|---|---|---|
-| `tallypoker.app` | 12-15 EUR | Favorit: Keyword, günstig, seriös |
-| `tallyscrum.com` | 10 EUR | bester .com-Kandidat, Keyword "scrum" |
-| `usetally.me` | 15-20 EUR | schönster "usetally"-Treffer |
-| `tallypoker.xyz` | ~10 EUR | günstig, .xyz hat gemischten Ruf |
-| `tally.click` | 3-10 EUR | kurz, Exoten-TLD |
-| `tally.zone` | 25-30 EUR | klingt gut, teurer als .app |
-| `usetally.io` | 35-50 EUR | hip, aber teuer |
-| `tally.poker` | 40-60 EUR | Brand + Keyword, aber Nischen-TLD-Preis |
-| `tallysprint.com` / `sprinttally.com` | 10 EUR | agil angehaucht |
-| `tally-poker.com` / `tally-poker.app` / `tallypoker.app` | 10-15 EUR | Bindestrich-Varianten wirken altbacken |
-| `tallyestimate.com`, `tallyagile.com`, `pointstally.com`, `tallyrooms.com` | 10 EUR | brauchbar, ohne starkes Keyword |
-| `playtally.app` | 12-15 EUR | generischer |
+| Domain                                                                     | Preis/Jahr ca. | Einschätzung                            |
+| -------------------------------------------------------------------------- | -------------- | --------------------------------------- |
+| `tallypoker.app`                                                           | 12-15 EUR      | Favorit: Keyword, günstig, seriös       |
+| `tallyscrum.com`                                                           | 10 EUR         | bester .com-Kandidat, Keyword "scrum"   |
+| `usetally.me`                                                              | 15-20 EUR      | schönster "usetally"-Treffer            |
+| `tallypoker.xyz`                                                           | ~10 EUR        | günstig, .xyz hat gemischten Ruf        |
+| `tally.click`                                                              | 3-10 EUR       | kurz, Exoten-TLD                        |
+| `tally.zone`                                                               | 25-30 EUR      | klingt gut, teurer als .app             |
+| `usetally.io`                                                              | 35-50 EUR      | hip, aber teuer                         |
+| `tally.poker`                                                              | 40-60 EUR      | Brand + Keyword, aber Nischen-TLD-Preis |
+| `tallysprint.com` / `sprinttally.com`                                      | 10 EUR         | agil angehaucht                         |
+| `tally-poker.com` / `tally-poker.app` / `tallypoker.app`                   | 10-15 EUR      | Bindestrich-Varianten wirken altbacken  |
+| `tallyestimate.com`, `tallyagile.com`, `pointstally.com`, `tallyrooms.com` | 10 EUR         | brauchbar, ohne starkes Keyword         |
+| `playtally.app`                                                            | 12-15 EUR      | generischer                             |
 
 Vergeben (Auswahl): `tally.com/.app/.dev/.io/.so/.gg/.sh/.live/.xyz`,
 `tallypoker.com`, `usetally.com/.app/.dev/.co/.xyz`, `gettally.*`, `trytally.*`,

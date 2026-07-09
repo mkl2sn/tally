@@ -19,6 +19,7 @@
 		MAX_NAME_LENGTH,
 		MAX_ROOM_NAME_LENGTH,
 		OFFLINE_GRACE_MS,
+		countdownDisplaySeconds,
 		sanitizeDeck
 	} from '$lib/protocol';
 	import type { PageProps } from './$types';
@@ -71,7 +72,7 @@
 	const revealed = $derived(snap?.phase === 'revealed');
 	const countdownSeconds = $derived(
 		snap?.phase === 'countdown' && snap.countdownEndsAt
-			? Math.max(1, Math.ceil((snap.countdownEndsAt - now) / 1000))
+			? countdownDisplaySeconds(snap.countdownEndsAt - now)
 			: null
 	);
 	const timerRemaining = $derived(
