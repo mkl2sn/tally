@@ -1,6 +1,8 @@
-import { env } from 'cloudflare:test';
+import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import type { ClientMessage, Role, RoomSnapshot, ServerMessage } from '../src/lib/protocol';
+
+const EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 
 const DECK = ['1', '2', '3', '5', '8', '?'];
 
@@ -303,6 +305,258 @@ describe('PokerRoom', () => {
 		expect(fresh.phase).toBe('voting');
 		expect(fresh.players.some((p) => p.hasVoted)).toBe(false);
 		expect(fresh.history).toHaveLength(1);
+		alice.close();
+	});
+
+	it('lets a player rename and switch to spectator, dropping their vote', async () => {
+		const stub = await createRoom('room-role-switch');
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+
+		alice.send({ type: 'vote', card: '2' });
+		expect((await alice.nextState()).players[0].hasVoted).toBe(true);
+
+		alice.send({ type: 'setRole', role: 'spectator' });
+		const spectating = await alice.nextState();
+		expect(spectating.players[0].role).toBe('spectator');
+		expect(spectating.players[0].hasVoted).toBe(false);
+
+		alice.send({ type: 'rename', name: '  Alice   B. ' });
+		expect((await alice.nextState()).players[0].name).toBe('Alice B.');
+		alice.close();
+	});
+
+	it('lets a player reconnect with their secret and keep identity and vote', async () => {
+		const stub = await createRoom('room-reconnect');
+		const alice = await join(stub, 'Alice');
+		const joined = await alice.next();
+		if (joined.type !== 'joined') throw new Error('expected joined message');
+		await alice.nextState();
+
+		alice.send({ type: 'vote', card: '5' });
+		await alice.nextState();
+		alice.close();
+
+		// Right secret: same identity, vote preserved.
+		const res = await stub.fetch('https://test/ws', { headers: { Upgrade: 'websocket' } });
+		const client = new TestClient(res.webSocket!);
+		client.send({
+			type: 'join',
+			name: 'Alice',
+			role: 'player',
+			playerId: joined.playerId,
+			secret: joined.secret
+		});
+		const rejoined = await client.next();
+		if (rejoined.type !== 'joined') throw new Error('expected joined message');
+		expect(rejoined.playerId).toBe(joined.playerId);
+		const state = await client.nextState();
+		expect(state.players.find((p) => p.id === joined.playerId)?.hasVoted).toBe(true);
+		client.close();
+	});
+
+	it('treats a reconnect with a wrong secret as a new player', async () => {
+		const stub = await createRoom('room-bad-secret');
+		const alice = await join(stub, 'Alice');
+		const joined = await alice.next();
+		if (joined.type !== 'joined') throw new Error('expected joined message');
+		await alice.nextState();
+		alice.close();
+
+		const res = await stub.fetch('https://test/ws', { headers: { Upgrade: 'websocket' } });
+		const impostor = new TestClient(res.webSocket!);
+		impostor.send({
+			type: 'join',
+			name: 'Mallory',
+			role: 'player',
+			playerId: joined.playerId,
+			secret: 'wrong-secret'
+		});
+		const rejoined = await impostor.next();
+		if (rejoined.type !== 'joined') throw new Error('expected joined message');
+		expect(rejoined.playerId).not.toBe(joined.playerId);
+		expect((await impostor.nextState()).players).toHaveLength(2);
+		impostor.close();
+	});
+
+	it('rejects players beyond the room limit', async () => {
+		const stub = await createRoom('room-full');
+		// Seed 50 stored players directly; 50 live websockets would broadcast O(n^2) states.
+		await runInDurableObject(stub, (instance) => {
+			const room = instance as unknown as { players: Map<string, unknown> };
+			for (let i = 0; i < 50; i++) {
+				room.players.set(`p${i}`, {
+					id: `p${i}`,
+					name: `Player ${i}`,
+					role: 'player',
+					joinedAt: i,
+					secret: `s${i}`,
+					lastSeen: 0
+				});
+			}
+		});
+
+		const res = await stub.fetch('https://test/ws', { headers: { Upgrade: 'websocket' } });
+		const straggler = new TestClient(res.webSocket!);
+		straggler.send({ type: 'join', name: 'Straggler', role: 'player' });
+		const msg = await straggler.next();
+		expect(msg.type).toBe('error');
+	});
+
+	it('lets a player claim the moderator role only while the moderator is offline', async () => {
+		const stub = await createRoom('room-claim', { moderated: true });
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+		const bob = await join(stub, 'Bob');
+		await bob.nextState();
+		await alice.nextState();
+
+		// Alice is online: Bob's claim is ignored (no broadcast).
+		bob.send({ type: 'claimModerator' });
+		bob.send({ type: 'vote', card: '1' });
+		const denied = await bob.nextState();
+		expect(denied.players.find((p) => p.name === 'Alice')?.isModerator).toBe(true);
+		await alice.nextState();
+
+		// Alice disconnects: now the claim succeeds.
+		alice.close();
+		await bob.nextState(); // alice went offline
+		bob.send({ type: 'claimModerator' });
+		const claimed = await bob.nextState();
+		expect(claimed.players.find((p) => p.name === 'Bob')?.isModerator).toBe(true);
+		expect(claimed.players.find((p) => p.name === 'Alice')?.isModerator).toBe(false);
+		bob.close();
+	});
+
+	it('lets the moderator hand over the role', async () => {
+		const stub = await createRoom('room-transfer', { moderated: true });
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+		const bob = await join(stub, 'Bob');
+		const bobId = (await bob.nextState()).you;
+		const aliceState = await alice.nextState();
+		const aliceId = aliceState.you;
+
+		alice.send({ type: 'transferModerator', playerId: bobId });
+		const handed = await alice.nextState();
+		expect(handed.players.find((p) => p.id === bobId)?.isModerator).toBe(true);
+		expect(handed.players.find((p) => p.id === aliceId)?.isModerator).toBe(false);
+		await bob.nextState();
+
+		// Alice is no longer moderator, so she cannot take the role back.
+		alice.send({ type: 'transferModerator', playerId: aliceId });
+		alice.send({ type: 'vote', card: '1' });
+		const after = await alice.nextState();
+		expect(after.players.find((p) => p.id === bobId)?.isModerator).toBe(true);
+		alice.close();
+		bob.close();
+	});
+
+	it('clamps the timer duration and lets it be stopped', async () => {
+		const stub = await createRoom('room-timer');
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+
+		alice.send({ type: 'startTimer', seconds: 3 });
+		expect((await alice.nextState()).timer?.duration).toBe(10);
+
+		alice.send({ type: 'startTimer', seconds: 999999 });
+		expect((await alice.nextState()).timer?.duration).toBe(3600);
+
+		alice.send({ type: 'stopTimer' });
+		expect((await alice.nextState()).timer).toBeNull();
+		alice.close();
+	});
+
+	it('auto-reveals once every online player has voted', async () => {
+		const stub = await createRoom('room-autoreveal', { autoReveal: true });
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+		const bob = await join(stub, 'Bob');
+		await bob.nextState();
+		await alice.nextState();
+
+		alice.send({ type: 'vote', card: '3' });
+		const waiting = await alice.nextState();
+		expect(waiting.phase).toBe('voting');
+		await bob.nextState();
+
+		bob.send({ type: 'vote', card: '5' });
+		const revealed = await bob.nextState();
+		expect(revealed.phase).toBe('revealed');
+		expect(revealed.result?.average).toBe(4);
+		alice.close();
+		bob.close();
+	});
+
+	it('finalizes a reveal countdown via its alarm', async () => {
+		const stub = await createRoom('room-countdown', { revealCountdown: true });
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+
+		alice.send({ type: 'vote', card: '5' });
+		await alice.nextState();
+		alice.send({ type: 'reveal' });
+		const counting = await alice.nextState();
+		expect(counting.phase).toBe('countdown');
+		expect(counting.countdownEndsAt).toBeGreaterThan(Date.now());
+
+		// Rewind the countdown instead of sleeping through it, then fire the alarm.
+		await runInDurableObject(stub, (instance) => {
+			const room = instance as unknown as { round: { countdownEndsAt: number } };
+			room.round.countdownEndsAt = Date.now() - 100;
+		});
+		expect(await runDurableObjectAlarm(stub)).toBe(true);
+
+		const revealed = await alice.nextState();
+		expect(revealed.phase).toBe('revealed');
+		expect(revealed.result?.average).toBe(5);
+		expect(revealed.history).toHaveLength(1);
+		alice.close();
+	});
+
+	it('wipes an expired room via its alarm', async () => {
+		const stub = await createRoom('room-expiry');
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+		alice.close();
+
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put('lastActivity', Date.now() - EXPIRY_MS - 1000);
+		});
+		expect(await runDurableObjectAlarm(stub)).toBe(true);
+
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.get('config')).toBeUndefined();
+			expect(await state.storage.get('players')).toBeUndefined();
+		});
+		const res = await stub.fetch('https://test/ws', { headers: { Upgrade: 'websocket' } });
+		expect(res.status).toBe(404);
+	});
+
+	it('survives garbage websocket input without crashing the room', async () => {
+		const stub = await createRoom('room-garbage');
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+
+		const res = await stub.fetch('https://test/ws', { headers: { Upgrade: 'websocket' } });
+		const raw = res.webSocket!;
+		raw.accept();
+		raw.send('not json at all');
+		raw.send('42');
+		raw.send(JSON.stringify({ type: 'doesNotExist' }));
+		raw.send(JSON.stringify({ type: 'vote', card: 123 }));
+		raw.send(JSON.stringify({ type: 'startTimer', seconds: 'soon' }));
+		raw.send('x'.repeat(100_000));
+		raw.send(new ArrayBuffer(8));
+
+		// The room still works for a real player.
+		alice.send({ type: 'vote', card: '2' });
+		alice.send({ type: 'reveal' });
+		let state = await alice.nextState();
+		if (state.phase === 'voting') state = await alice.nextState();
+		expect(state.phase).toBe('revealed');
+		expect(state.result?.average).toBe(2);
 		alice.close();
 	});
 });
