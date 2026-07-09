@@ -1,5 +1,9 @@
 <script lang="ts">
-	let { size = 32, wordmark = false }: { size?: number; wordmark?: boolean } = $props();
+	let {
+		size = 32,
+		wordmark = false,
+		beta = false
+	}: { size?: number; wordmark?: boolean; beta?: boolean } = $props();
 </script>
 
 <span class="inline-flex items-center gap-2">
@@ -19,5 +23,12 @@
 	</svg>
 	{#if wordmark}
 		<span class="text-2xl font-extrabold tracking-tight">Tally</span>
+	{/if}
+	{#if beta}
+		<span
+			class="bg-accent-soft text-accent rounded-full px-2 py-1 text-sm font-semibold leading-none uppercase"
+		>
+			Beta
+		</span>
 	{/if}
 </span>
