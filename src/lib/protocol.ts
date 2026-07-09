@@ -53,6 +53,8 @@ export interface Distribution {
 
 export interface RoundResult {
 	average: number | null;
+	/** Middle of the sorted numeric votes; resistant to a single outlier. Null when no numeric votes. */
+	median: number | null;
 	/** Share of votes matching the most common card, 0..1. */
 	agreement: number;
 	distribution: Distribution[];

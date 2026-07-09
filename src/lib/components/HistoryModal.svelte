@@ -32,6 +32,10 @@
 								<span class="text-muted">Avg</span>
 								<strong class="tabular-nums">{entry.average ?? '–'}</strong>
 							</span>
+							<span>
+								<span class="text-muted">Median</span>
+								<strong class="tabular-nums">{entry.median ?? '–'}</strong>
+							</span>
 						{/if}
 						<span class="inline-flex items-center gap-1.5">
 							<span class="text-muted">Agreement</span>

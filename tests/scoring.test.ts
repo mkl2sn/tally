@@ -56,6 +56,41 @@ describe('computeRoundResult', () => {
 		expect(result.agreement).toBe(0.5);
 	});
 
+	it('takes the middle numeric vote as the median (odd count)', () => {
+		const result = computeRoundResult(
+			[
+				{ name: 'A', card: '3' },
+				{ name: 'B', card: '13' },
+				{ name: 'C', card: '5' }
+			],
+			DECK
+		);
+		expect(result.median).toBe(5);
+	});
+
+	it('averages the two middle votes for an even count, ignoring non-numeric cards', () => {
+		const result = computeRoundResult(
+			[
+				{ name: 'A', card: '5' },
+				{ name: 'B', card: '8' },
+				{ name: 'C', card: '?' }
+			],
+			DECK
+		);
+		expect(result.median).toBe(6.5);
+	});
+
+	it('has no median for fully non-numeric votes', () => {
+		const result = computeRoundResult(
+			[
+				{ name: 'A', card: '?' },
+				{ name: 'B', card: '☕' }
+			],
+			DECK
+		);
+		expect(result.median).toBeNull();
+	});
+
 	it('has no average for fully non-numeric decks', () => {
 		const result = computeRoundResult(
 			[
