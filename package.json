@@ -7,6 +7,7 @@
 		"dev": "vite dev",
 		"build": "wrangler types && vite build",
 		"preview": "wrangler dev --port 4173",
+		"dev:full": "pnpm build && wrangler dev --port 8787",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "wrangler types && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
