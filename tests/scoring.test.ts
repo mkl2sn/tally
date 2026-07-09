@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cardNumericValue, countdownDisplaySeconds } from '../src/lib/protocol';
-import { computeRoundResult, voteSpread } from '../src/lib/scoring';
+import { computeRoundResult, outlierFor, voteSpread } from '../src/lib/scoring';
 
 const DECK = ['0', '½', '1', '2', '3', '5', '8', '13', '?', '☕'];
 
@@ -175,5 +175,26 @@ describe('voteSpread', () => {
 		expect(voteSpread([{ card: '5' }, { card: '13' }])).toBeNull();
 		expect(voteSpread([{ card: '5' }, { card: '?' }])).toBeNull();
 		expect(voteSpread([])).toBeNull();
+	});
+});
+
+describe('outlierFor', () => {
+	it('flags a vote that matches an extreme', () => {
+		expect(outlierFor('21', { low: null, high: 21 })).toBe('high');
+		expect(outlierFor('3', { low: 3, high: null })).toBe('low');
+	});
+
+	it('is null for votes between the extremes', () => {
+		expect(outlierFor('8', { low: 3, high: 21 })).toBeNull();
+	});
+
+	it('never flags non-numeric cards, even against a null extreme', () => {
+		expect(outlierFor('?', { low: 3, high: null })).toBeNull();
+		expect(outlierFor('☕', { low: null, high: 21 })).toBeNull();
+	});
+
+	it('is null without a spread or a vote', () => {
+		expect(outlierFor('8', null)).toBeNull();
+		expect(outlierFor(null, { low: 3, high: 21 })).toBeNull();
 	});
 });
