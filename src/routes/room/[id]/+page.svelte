@@ -287,6 +287,17 @@
 			</h1>
 
 			<div class="flex items-center gap-2">
+				{#if feedbackSurveyId}
+					<button
+						class="btn btn-secondary btn-sm btn-icon"
+						onclick={openFeedback}
+						aria-label="Feedback"
+						title="Feedback"
+					>
+						<IconMessageSquare class="size-4" />
+					</button>
+				{/if}
+
 				{#if snap.timer && timerRemaining !== null}
 					<span
 						class="rounded-full border border-line px-3 py-1.5 text-sm tabular-nums {timerRemaining ===
@@ -305,8 +316,12 @@
 					</span>
 				{:else if canManage}
 					<DropdownMenu.Root>
-						<DropdownMenu.Trigger class="btn btn-secondary btn-sm">
-							<IconTimer class="size-4" /> Timer
+						<DropdownMenu.Trigger
+							class="btn btn-secondary btn-sm btn-icon"
+							aria-label="Timer"
+							title="Timer"
+						>
+							<IconTimer class="size-4" />
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Portal>
 							<DropdownMenu.Content
@@ -328,23 +343,27 @@
 				{/if}
 
 				{#if canManage}
-					<button class="btn btn-secondary btn-sm" onclick={openSettings}>
-						<IconSettings class="size-4" /> Settings
+					<button
+						class="btn btn-secondary btn-sm btn-icon"
+						onclick={openSettings}
+						aria-label="Settings"
+						title="Settings"
+					>
+						<IconSettings class="size-4" />
 					</button>
 				{/if}
 
-				<button class="btn btn-secondary btn-sm" onclick={() => (historyOpen = true)}>
+				<button
+					class="btn btn-secondary btn-sm btn-icon"
+					onclick={() => (historyOpen = true)}
+					aria-label={snap.history.length > 0 ? `History (${snap.history.length})` : 'History'}
+					title={snap.history.length > 0 ? `History (${snap.history.length})` : 'History'}
+				>
 					<IconHistory class="size-4" />
-					History{snap.history.length > 0 ? ` (${snap.history.length})` : ''}
 				</button>
 				<button class="btn btn-primary btn-sm" onclick={() => (inviteOpen = true)}>
 					<IconUserPlus class="size-4" /> Invite
 				</button>
-				{#if feedbackSurveyId}
-					<button class="btn btn-secondary btn-sm" onclick={openFeedback}>
-						<IconMessageSquare class="size-4" /> Feedback
-					</button>
-				{/if}
 				<ThemeToggle />
 			</div>
 		</header>
