@@ -7,6 +7,7 @@
 	import Select from '$lib/components/ui/Select.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import { DECK_PRESETS, MAX_DECK_SIZE, MAX_ROOM_NAME_LENGTH } from '$lib/protocol';
+	import posthog from 'posthog-js';
 
 	let roomName = $state('');
 	let deckId = $state<string>('fibonacci');
@@ -45,6 +46,11 @@
 			});
 			if (!res.ok) throw new Error('Could not create the game. Please try again.');
 			const { roomId } = (await res.json()) as { roomId: string };
+			posthog.capture('game_created', {
+				deck_type: deckId,
+				deck_size: deck.length,
+				is_moderated: !openRoom
+			});
 			await goto(`/room/${roomId}`);
 		} catch (err) {
 			errorMsg = err instanceof Error ? err.message : 'Could not create the game.';

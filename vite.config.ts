@@ -14,7 +14,8 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter({ config: 'wrangler.build.jsonc' })
+			adapter: adapter({ config: 'wrangler.build.jsonc' }),
+			paths: { relative: false }
 		})
 	]
 });

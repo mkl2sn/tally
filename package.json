@@ -16,6 +16,10 @@
 		"test": "vitest run",
 		"test:watch": "vitest"
 	},
+	"dependencies": {
+		"posthog-js": "^1.250.0",
+		"posthog-node": "^4.16.0"
+	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.18.2",
 		"@fontsource-variable/outfit": "^5.2.8",
