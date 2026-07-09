@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { DropdownMenu } from 'bits-ui';
+	import { DropdownMenu, Tooltip } from 'bits-ui';
 	import IconTimer from '~icons/lucide/timer';
 	import IconSettings from '~icons/lucide/settings';
 	import IconHistory from '~icons/lucide/history';
@@ -93,6 +93,9 @@
 	);
 	const revealMode = $derived(Array.isArray(snap?.whoCanReveal) ? 'selected' : (snap?.whoCanReveal ?? 'all'));
 	const selectedRevealers = $derived(Array.isArray(snap?.whoCanReveal) ? snap.whoCanReveal : []);
+	const historyLabel = $derived(
+		snap && snap.history.length > 0 ? `History (${snap.history.length})` : 'History'
+	);
 
 	const revealModeItems = [
 		{ value: 'all', label: 'All players' },
@@ -288,14 +291,18 @@
 
 			<div class="flex items-center gap-2">
 				{#if feedbackSurveyId}
-					<button
-						class="btn btn-secondary btn-sm btn-icon"
-						onclick={openFeedback}
-						aria-label="Feedback"
-						title="Feedback"
-					>
-						<IconMessageSquare class="size-4" />
-					</button>
+					<Tooltip.Root>
+						<Tooltip.Trigger
+							class="btn btn-secondary btn-sm btn-icon"
+							onclick={openFeedback}
+							aria-label="Feedback"
+						>
+							<IconMessageSquare class="size-4" />
+						</Tooltip.Trigger>
+						<Tooltip.Portal>
+							<Tooltip.Content sideOffset={8} class="tooltip-content">Feedback</Tooltip.Content>
+						</Tooltip.Portal>
+					</Tooltip.Root>
 				{/if}
 
 				{#if snap.timer && timerRemaining !== null}
@@ -307,22 +314,39 @@
 					>
 						{timerRemaining === 0 ? "Time's up" : formatSeconds(timerRemaining)}
 						{#if canManage}
-							<button
-								class="ml-1 align-middle text-muted hover:text-ink"
-								onclick={() => conn?.send({ type: 'stopTimer' })}
-								aria-label="Stop timer"><IconX class="size-3.5" /></button
-							>
+							<Tooltip.Root>
+								<Tooltip.Trigger
+									class="ml-1 align-middle text-muted hover:text-ink"
+									onclick={() => conn?.send({ type: 'stopTimer' })}
+									aria-label="Stop timer"
+								>
+									<IconX class="size-3.5" />
+								</Tooltip.Trigger>
+								<Tooltip.Portal>
+									<Tooltip.Content sideOffset={8} class="tooltip-content">
+										Stop timer
+									</Tooltip.Content>
+								</Tooltip.Portal>
+							</Tooltip.Root>
 						{/if}
 					</span>
 				{:else if canManage}
+					{#snippet timerTrigger({ props: menuProps }: { props: Record<string, unknown> })}
+						<Tooltip.Root>
+							<Tooltip.Trigger
+								{...menuProps}
+								class="btn btn-secondary btn-sm btn-icon"
+								aria-label="Timer"
+							>
+								<IconTimer class="size-4" />
+							</Tooltip.Trigger>
+							<Tooltip.Portal>
+								<Tooltip.Content sideOffset={8} class="tooltip-content">Timer</Tooltip.Content>
+							</Tooltip.Portal>
+						</Tooltip.Root>
+					{/snippet}
 					<DropdownMenu.Root>
-						<DropdownMenu.Trigger
-							class="btn btn-secondary btn-sm btn-icon"
-							aria-label="Timer"
-							title="Timer"
-						>
-							<IconTimer class="size-4" />
-						</DropdownMenu.Trigger>
+						<DropdownMenu.Trigger child={timerTrigger} />
 						<DropdownMenu.Portal>
 							<DropdownMenu.Content
 								sideOffset={6}
@@ -343,24 +367,32 @@
 				{/if}
 
 				{#if canManage}
-					<button
-						class="btn btn-secondary btn-sm btn-icon"
-						onclick={openSettings}
-						aria-label="Settings"
-						title="Settings"
-					>
-						<IconSettings class="size-4" />
-					</button>
+					<Tooltip.Root>
+						<Tooltip.Trigger
+							class="btn btn-secondary btn-sm btn-icon"
+							onclick={openSettings}
+							aria-label="Settings"
+						>
+							<IconSettings class="size-4" />
+						</Tooltip.Trigger>
+						<Tooltip.Portal>
+							<Tooltip.Content sideOffset={8} class="tooltip-content">Settings</Tooltip.Content>
+						</Tooltip.Portal>
+					</Tooltip.Root>
 				{/if}
 
-				<button
-					class="btn btn-secondary btn-sm btn-icon"
-					onclick={() => (historyOpen = true)}
-					aria-label={snap.history.length > 0 ? `History (${snap.history.length})` : 'History'}
-					title={snap.history.length > 0 ? `History (${snap.history.length})` : 'History'}
-				>
-					<IconHistory class="size-4" />
-				</button>
+				<Tooltip.Root>
+					<Tooltip.Trigger
+						class="btn btn-secondary btn-sm btn-icon"
+						onclick={() => (historyOpen = true)}
+						aria-label={historyLabel}
+					>
+						<IconHistory class="size-4" />
+					</Tooltip.Trigger>
+					<Tooltip.Portal>
+						<Tooltip.Content sideOffset={8} class="tooltip-content">{historyLabel}</Tooltip.Content>
+					</Tooltip.Portal>
+				</Tooltip.Root>
 				<button class="btn btn-primary btn-sm" onclick={() => (inviteOpen = true)}>
 					<IconUserPlus class="size-4" /> Invite
 				</button>

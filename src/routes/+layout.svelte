@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Tooltip } from 'bits-ui';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 
@@ -6,4 +7,6 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
-{@render children()}
+<Tooltip.Provider delayDuration={200} disableHoverableContent>
+	{@render children()}
+</Tooltip.Provider>
