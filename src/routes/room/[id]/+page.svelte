@@ -27,7 +27,7 @@
 	import { voteSpread, outlierFor } from '$lib/scoring';
 	import type { PageProps } from './$types';
 	import posthog, { DisplaySurveyType } from 'posthog-js';
-	import { env } from '$env/dynamic/public';
+	import { PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID } from '$env/static/public';
 
 	let { data }: PageProps = $props();
 
@@ -47,7 +47,7 @@
 	let inviteUrl = $state('');
 	let now = $state(Date.now());
 
-	const feedbackSurveyId = env.PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID;
+	const feedbackSurveyId = PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID;
 
 	onMount(() => {
 		name = localStorage.getItem('tally:name') ?? '';
