@@ -234,7 +234,7 @@
 	<div class="grid min-h-dvh place-items-center px-4">
 		<div class="w-full max-w-md">
 			<div class="mb-6 flex justify-center">
-				<a href="/" aria-label="Tally home"><Logo size={34} wordmark /></a>
+				<a href="/" aria-label="Tally home"><Logo size={34} wordmark beta /></a>
 			</div>
 			<form onsubmit={join} class="grid gap-4 rounded-2xl border border-line bg-surface p-6 shadow-sm">
 				<div>
