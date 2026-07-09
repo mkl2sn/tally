@@ -19,10 +19,20 @@ export function computeRoundResult(
 			? Math.round((numeric.reduce((a, b) => a + b, 0) / numeric.length) * 10) / 10
 			: null;
 
+	const sorted = numeric.toSorted((a, b) => a - b);
+	const mid = Math.floor(sorted.length / 2);
+	const median =
+		sorted.length === 0
+			? null
+			: sorted.length % 2 === 1
+				? sorted[mid]
+				: Math.round(((sorted[mid - 1] + sorted[mid]) / 2) * 10) / 10;
+
 	const agreement = votes.length > 0 ? (distribution[0]?.count ?? 0) / votes.length : 0;
 
 	return {
 		average,
+		median,
 		agreement,
 		distribution,
 		votes: votes.toSorted((a, b) => a.name.localeCompare(b.name))

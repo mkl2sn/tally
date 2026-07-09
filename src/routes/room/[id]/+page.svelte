@@ -403,6 +403,14 @@
 								</div>
 								<div class="mt-1 text-sm text-muted">average</div>
 							</div>
+							<div class="text-center">
+								<div class="mx-auto grid size-24 place-items-center">
+									<div class="text-3xl font-extrabold tracking-tight tabular-nums">
+										{snap.result.median ?? '–'}
+									</div>
+								</div>
+								<div class="mt-1 text-sm text-muted">median</div>
+							</div>
 						{/if}
 						<div class="text-center">
 							<div class="relative mx-auto size-24">
@@ -658,7 +666,7 @@
 				<Switch
 					checked={snap.showAverage}
 					onCheckedChange={(value) => conn?.send({ type: 'setShowAverage', value })}
-					label="Show average in the results"
+					label="Show average and median in the results"
 				/>
 				{#if snap.moderated}
 					<div class="grid gap-1.5 border-t border-line pt-4">
