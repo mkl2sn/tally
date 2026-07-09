@@ -5,6 +5,7 @@
 	import IconSettings from '~icons/lucide/settings';
 	import IconHistory from '~icons/lucide/history';
 	import IconUserPlus from '~icons/lucide/user-plus';
+	import IconMessageSquare from '~icons/lucide/message-square';
 	import IconX from '~icons/lucide/x';
 	import Logo from '$lib/components/Logo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -23,7 +24,8 @@
 		sanitizeDeck
 	} from '$lib/protocol';
 	import type { PageProps } from './$types';
-	import posthog from 'posthog-js';
+	import posthog, { DisplaySurveyType } from 'posthog-js';
+	import { env } from '$env/dynamic/public';
 
 	let { data }: PageProps = $props();
 
@@ -42,6 +44,8 @@
 	let customDeckDraft = $state('');
 	let inviteUrl = $state('');
 	let now = $state(Date.now());
+
+	const feedbackSurveyId = env.PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID;
 
 	onMount(() => {
 		name = localStorage.getItem('tally:name') ?? '';
@@ -167,6 +171,15 @@
 		copied = true;
 		setTimeout(() => (copied = false), 1500);
 		posthog.capture('invite_link_copied', { room_id: data.roomId });
+	}
+
+	function openFeedback() {
+		if (!feedbackSurveyId) return;
+		posthog.displaySurvey(feedbackSurveyId, {
+			displayType: DisplaySurveyType.Popover,
+			ignoreConditions: true,
+			ignoreDelay: true
+		});
 	}
 
 	function submitRename(event: SubmitEvent) {
@@ -324,6 +337,11 @@
 				<button class="btn btn-primary btn-sm" onclick={() => (inviteOpen = true)}>
 					<IconUserPlus class="size-4" /> Invite
 				</button>
+				{#if feedbackSurveyId}
+					<button class="btn btn-secondary btn-sm" onclick={openFeedback}>
+						<IconMessageSquare class="size-4" /> Feedback
+					</button>
+				{/if}
 				<ThemeToggle />
 			</div>
 		</header>
