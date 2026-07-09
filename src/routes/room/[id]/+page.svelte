@@ -22,6 +22,7 @@
 		sanitizeDeck
 	} from '$lib/protocol';
 	import type { PageProps } from './$types';
+	import posthog from 'posthog-js';
 
 	let { data }: PageProps = $props();
 
@@ -146,21 +147,25 @@
 		if (!trimmed) return;
 		name = trimmed;
 		localStorage.setItem('tally:name', trimmed);
-		conn = new RoomConnection(data.roomId, {
-			name: trimmed,
-			role: joinAsSpectator ? 'spectator' : 'player'
-		});
+		const role = joinAsSpectator ? 'spectator' : 'player';
+		conn = new RoomConnection(data.roomId, { name: trimmed, role });
+		posthog.capture('game_joined', { role, room_id: data.roomId });
 	}
 
 	function toggleVote(card: string) {
 		if (!conn || !snap || snap.phase !== 'voting') return;
-		conn.vote(you?.vote === card ? null : card);
+		const isDeselecting = you?.vote === card;
+		conn.vote(isDeselecting ? null : card);
+		if (!isDeselecting) {
+			posthog.capture('vote_cast', { deck_size: snap.deck.length, round: snap.round });
+		}
 	}
 
 	async function copyInvite() {
 		await navigator.clipboard.writeText(inviteUrl);
 		copied = true;
 		setTimeout(() => (copied = false), 1500);
+		posthog.capture('invite_link_copied', { room_id: data.roomId });
 	}
 
 	function submitRename(event: SubmitEvent) {
@@ -400,7 +405,16 @@
 						{/each}
 					</div>
 					{#if canManage}
-						<button class="btn btn-primary mt-1" onclick={() => conn?.send({ type: 'newRound' })}>
+						<button
+							class="btn btn-primary mt-1"
+							onclick={() => {
+								conn?.send({ type: 'newRound' });
+								posthog.capture('new_round_started', {
+									room_id: data.roomId,
+									round: snap?.round
+								});
+							}}
+						>
 							Start next round
 						</button>
 					{/if}
@@ -420,7 +434,15 @@
 						<button
 							class="btn btn-primary"
 							disabled={votedCount === 0}
-							onclick={() => conn?.send({ type: 'reveal' })}
+							onclick={() => {
+								conn?.send({ type: 'reveal' });
+								posthog.capture('cards_revealed', {
+									room_id: data.roomId,
+									round: snap?.round,
+									voted_count: votedCount,
+									total_players: activePlayers.length
+								});
+							}}
 						>
 							Reveal cards
 						</button>

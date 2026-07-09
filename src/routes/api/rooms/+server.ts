@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { MAX_ROOM_NAME_LENGTH, sanitizeDeck } from '$lib/protocol';
 import type { RequestHandler } from './$types';
+import { getPostHogClient } from '$lib/server/posthog';
 
 // No lookalike characters (0/O, 1/l/I) so room ids survive being read aloud.
 const ID_ALPHABET = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -38,6 +39,17 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		revealCountdown: body.revealCountdown !== false,
 		moderated: body.moderated === true
 	});
+
+	const posthog = getPostHogClient();
+	posthog.capture({
+		distinctId: 'server',
+		event: 'room_created',
+		properties: {
+			deck_size: deck.length,
+			is_moderated: body.moderated === true
+		}
+	});
+	await posthog.flush();
 
 	return json({ roomId });
 };
