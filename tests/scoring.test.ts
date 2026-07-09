@@ -140,22 +140,39 @@ describe('computeRoundResult', () => {
 });
 
 describe('voteSpread', () => {
-	it('returns the lowest and highest numeric votes', () => {
+	it('returns the lowest and highest numeric votes when both are unique', () => {
 		expect(voteSpread([{ card: '3' }, { card: '8' }, { card: '1' }])).toEqual({ low: 1, high: 8 });
 	});
 
 	it('ignores non-numeric cards', () => {
-		expect(voteSpread([{ card: '2' }, { card: '?' }, { card: '☕' }, { card: '13' }])).toEqual({
-			low: 2,
-			high: 13
+		expect(
+			voteSpread([{ card: '2' }, { card: '?' }, { card: '☕' }, { card: '8' }, { card: '13' }])
+		).toEqual({ low: 2, high: 13 });
+	});
+
+	it('does not flag a shared extreme (the cluster is not an outlier)', () => {
+		expect(voteSpread([{ card: '8' }, { card: '8' }, { card: '21' }])).toEqual({
+			low: null,
+			high: 21
+		});
+		expect(voteSpread([{ card: '3' }, { card: '13' }, { card: '13' }])).toEqual({
+			low: 3,
+			high: null
 		});
 	});
 
-	it('is null when everyone agrees', () => {
-		expect(voteSpread([{ card: '5' }, { card: '5' }])).toBeNull();
+	it('is null when both extremes are shared', () => {
+		expect(
+			voteSpread([{ card: '5' }, { card: '5' }, { card: '13' }, { card: '13' }])
+		).toBeNull();
 	});
 
-	it('is null with fewer than two numeric votes', () => {
+	it('is null when everyone agrees', () => {
+		expect(voteSpread([{ card: '5' }, { card: '5' }, { card: '5' }])).toBeNull();
+	});
+
+	it('is null with fewer than three numeric votes', () => {
+		expect(voteSpread([{ card: '5' }, { card: '13' }])).toBeNull();
 		expect(voteSpread([{ card: '5' }, { card: '?' }])).toBeNull();
 		expect(voteSpread([])).toBeNull();
 	});

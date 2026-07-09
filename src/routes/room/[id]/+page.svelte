@@ -82,6 +82,7 @@
 	function outlierFor(player: PlayerView): 'high' | 'low' | null {
 		if (!spread || player.vote === null) return null;
 		const value = cardNumericValue(player.vote);
+		if (value === null) return null;
 		if (value === spread.high) return 'high';
 		if (value === spread.low) return 'low';
 		return null;

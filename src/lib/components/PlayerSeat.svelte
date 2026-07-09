@@ -46,12 +46,9 @@
 					{/if}
 				</div>
 				<div
-					class="flip-back absolute inset-0 flex items-center justify-center rounded-lg bg-accent-soft text-lg font-bold text-accent tabular-nums shadow-sm {outlier ===
-					'high'
-						? 'ring-2 ring-danger'
-						: outlier === 'low'
-							? 'ring-2 ring-accent'
-							: ''}"
+					class="flip-back absolute inset-0 flex items-center justify-center rounded-lg bg-accent-soft text-lg font-bold text-accent tabular-nums shadow-sm {outlier
+						? 'ring-2 ring-accent'
+						: ''}"
 				>
 					{player.vote ?? ''}
 				</div>
@@ -104,11 +101,7 @@
 	</div>
 
 	{#if revealed && outlier}
-		<span
-			class="inline-flex items-center gap-0.5 text-sm font-medium {outlier === 'high'
-				? 'text-danger'
-				: 'text-accent'}"
-		>
+		<span class="inline-flex items-center gap-0.5 text-sm font-medium text-accent">
 			{#if outlier === 'high'}
 				<IconArrowUp class="size-3.5" /> highest
 			{:else}

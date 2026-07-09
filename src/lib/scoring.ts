@@ -41,13 +41,22 @@ export function computeRoundResult(
 
 /**
  * Lowest and highest numeric votes, to flag the outliers worth discussing.
- * Non-numeric cards (?, ☕) are ignored; null when there is no spread (fewer
- * than two numeric votes, or everyone landed on the same number).
+ * Non-numeric cards (?, ☕) are ignored. Returns null when there is nothing to
+ * flag: fewer than three numeric votes, everyone on the same number, or neither
+ * extreme is a lone outlier. An extreme is only reported when exactly one player
+ * picked it - a shared extreme is a cluster, not an outlier - so `low`/`high`
+ * may individually be null.
  */
-export function voteSpread(votes: { card: string }[]): { low: number; high: number } | null {
+export function voteSpread(
+	votes: { card: string }[]
+): { low: number | null; high: number | null } | null {
 	const numeric = votes.map((v) => cardNumericValue(v.card)).filter((n): n is number => n !== null);
-	if (numeric.length < 2) return null;
+	if (numeric.length < 3) return null;
 	const low = Math.min(...numeric);
 	const high = Math.max(...numeric);
-	return low === high ? null : { low, high };
+	if (low === high) return null;
+	const lowUnique = numeric.filter((n) => n === low).length === 1;
+	const highUnique = numeric.filter((n) => n === high).length === 1;
+	if (!lowUnique && !highUnique) return null;
+	return { low: lowUnique ? low : null, high: highUnique ? high : null };
 }
