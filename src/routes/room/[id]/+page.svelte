@@ -20,9 +20,12 @@
 		MAX_NAME_LENGTH,
 		MAX_ROOM_NAME_LENGTH,
 		OFFLINE_GRACE_MS,
+		cardNumericValue,
 		countdownDisplaySeconds,
-		sanitizeDeck
+		sanitizeDeck,
+		type PlayerView
 	} from '$lib/protocol';
+	import { voteSpread } from '$lib/scoring';
 	import type { PageProps } from './$types';
 	import posthog, { DisplaySurveyType } from 'posthog-js';
 	import { env } from '$env/dynamic/public';
@@ -74,6 +77,15 @@
 	const activePlayers = $derived(visiblePlayers.filter((p) => p.role === 'player' && p.online));
 	const votedCount = $derived(activePlayers.filter((p) => p.hasVoted).length);
 	const revealed = $derived(snap?.phase === 'revealed');
+	const spread = $derived(revealed && snap?.result ? voteSpread(snap.result.votes) : null);
+
+	function outlierFor(player: PlayerView): 'high' | 'low' | null {
+		if (!spread || player.vote === null) return null;
+		const value = cardNumericValue(player.vote);
+		if (value === spread.high) return 'high';
+		if (value === spread.low) return 'low';
+		return null;
+	}
 	const countdownSeconds = $derived(
 		snap?.phase === 'countdown' && snap.countdownEndsAt
 			? countdownDisplaySeconds(snap.countdownEndsAt - now)
@@ -359,6 +371,7 @@
 						{player}
 						{revealed}
 						isYou={player.id === snap.you}
+						outlier={outlierFor(player)}
 						canMakeModerator={isMod && player.id !== snap.you}
 						onmakemoderator={() => conn?.send({ type: 'transferModerator', playerId: player.id })}
 					/>
@@ -483,6 +496,7 @@
 						{player}
 						{revealed}
 						isYou={player.id === snap.you}
+						outlier={outlierFor(player)}
 						canMakeModerator={isMod && player.id !== snap.you}
 						onmakemoderator={() => conn?.send({ type: 'transferModerator', playerId: player.id })}
 					/>

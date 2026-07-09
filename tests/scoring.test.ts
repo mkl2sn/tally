@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cardNumericValue, countdownDisplaySeconds } from '../src/lib/protocol';
-import { computeRoundResult } from '../src/lib/scoring';
+import { computeRoundResult, voteSpread } from '../src/lib/scoring';
 
 const DECK = ['0', '½', '1', '2', '3', '5', '8', '13', '?', '☕'];
 
@@ -101,5 +101,27 @@ describe('computeRoundResult', () => {
 		expect(result.average).toBeNull();
 		expect(result.agreement).toBe(0);
 		expect(result.distribution).toEqual([]);
+	});
+});
+
+describe('voteSpread', () => {
+	it('returns the lowest and highest numeric votes', () => {
+		expect(voteSpread([{ card: '3' }, { card: '8' }, { card: '1' }])).toEqual({ low: 1, high: 8 });
+	});
+
+	it('ignores non-numeric cards', () => {
+		expect(voteSpread([{ card: '2' }, { card: '?' }, { card: '☕' }, { card: '13' }])).toEqual({
+			low: 2,
+			high: 13
+		});
+	});
+
+	it('is null when everyone agrees', () => {
+		expect(voteSpread([{ card: '5' }, { card: '5' }])).toBeNull();
+	});
+
+	it('is null with fewer than two numeric votes', () => {
+		expect(voteSpread([{ card: '5' }, { card: '?' }])).toBeNull();
+		expect(voteSpread([])).toBeNull();
 	});
 });

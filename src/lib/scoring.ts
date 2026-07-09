@@ -28,3 +28,16 @@ export function computeRoundResult(
 		votes: votes.toSorted((a, b) => a.name.localeCompare(b.name))
 	};
 }
+
+/**
+ * Lowest and highest numeric votes, to flag the outliers worth discussing.
+ * Non-numeric cards (?, ☕) are ignored; null when there is no spread (fewer
+ * than two numeric votes, or everyone landed on the same number).
+ */
+export function voteSpread(votes: { card: string }[]): { low: number; high: number } | null {
+	const numeric = votes.map((v) => cardNumericValue(v.card)).filter((n): n is number => n !== null);
+	if (numeric.length < 2) return null;
+	const low = Math.min(...numeric);
+	const high = Math.max(...numeric);
+	return low === high ? null : { low, high };
+}

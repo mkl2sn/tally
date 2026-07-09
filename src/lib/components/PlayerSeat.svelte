@@ -2,18 +2,22 @@
 	import { DropdownMenu } from 'bits-ui';
 	import IconCrown from '~icons/lucide/crown';
 	import IconEye from '~icons/lucide/eye';
+	import IconArrowUp from '~icons/lucide/arrow-up';
+	import IconArrowDown from '~icons/lucide/arrow-down';
 	import type { PlayerView } from '$lib/protocol';
 
 	let {
 		player,
 		revealed,
 		isYou,
+		outlier = null,
 		canMakeModerator = false,
 		onmakemoderator
 	}: {
 		player: PlayerView;
 		revealed: boolean;
 		isYou: boolean;
+		outlier?: 'high' | 'low' | null;
 		canMakeModerator?: boolean;
 		onmakemoderator?: () => void;
 	} = $props();
@@ -40,7 +44,12 @@
 					{/if}
 				</div>
 				<div
-					class="flip-back absolute inset-0 flex items-center justify-center rounded-lg bg-accent-soft text-lg font-bold text-accent tabular-nums shadow-sm"
+					class="flip-back absolute inset-0 flex items-center justify-center rounded-lg bg-accent-soft text-lg font-bold text-accent tabular-nums shadow-sm {outlier ===
+					'high'
+						? 'ring-2 ring-danger'
+						: outlier === 'low'
+							? 'ring-2 ring-accent'
+							: ''}"
 				>
 					{player.vote ?? ''}
 				</div>
@@ -82,7 +91,19 @@
 		{/if}
 	</div>
 
-	{#if !player.online}
+	{#if revealed && outlier}
+		<span
+			class="inline-flex items-center gap-0.5 text-sm font-medium {outlier === 'high'
+				? 'text-danger'
+				: 'text-accent'}"
+		>
+			{#if outlier === 'high'}
+				<IconArrowUp class="size-3.5" /> highest
+			{:else}
+				<IconArrowDown class="size-3.5" /> lowest
+			{/if}
+		</span>
+	{:else if !player.online}
 		<span class="text-sm text-muted">away</span>
 	{/if}
 </div>
