@@ -374,6 +374,9 @@
 						outlier={outlierFor(player)}
 						canMakeModerator={isMod && player.id !== snap.you}
 						onmakemoderator={() => conn?.send({ type: 'transferModerator', playerId: player.id })}
+						onkick={isMod && player.id !== snap.you
+							? () => conn?.send({ type: 'kick', playerId: player.id })
+							: undefined}
 					/>
 				{/each}
 			</div>
@@ -499,6 +502,9 @@
 						outlier={outlierFor(player)}
 						canMakeModerator={isMod && player.id !== snap.you}
 						onmakemoderator={() => conn?.send({ type: 'transferModerator', playerId: player.id })}
+						onkick={isMod && player.id !== snap.you
+							? () => conn?.send({ type: 'kick', playerId: player.id })
+							: undefined}
 					/>
 				{/each}
 			</div>

@@ -67,6 +67,7 @@ export class PokerRoom extends DurableObject<Env> {
 	private history: HistoryEntry[] = [];
 	private moderatorId: string | null = null;
 	private timer: TimerState | null = null;
+	private bannedIds: string[] = [];
 
 	private async load() {
 		if (this.loaded) return;
@@ -76,7 +77,8 @@ export class PokerRoom extends DurableObject<Env> {
 			'round',
 			'history',
 			'moderatorId',
-			'timer'
+			'timer',
+			'banned'
 		]);
 		this.config = (data.get('config') as RoomConfig) ?? null;
 		if (this.config) {
@@ -91,6 +93,7 @@ export class PokerRoom extends DurableObject<Env> {
 		this.history = (data.get('history') as HistoryEntry[]) ?? [];
 		this.moderatorId = (data.get('moderatorId') as string) ?? null;
 		this.timer = (data.get('timer') as TimerState) ?? null;
+		this.bannedIds = (data.get('banned') as string[]) ?? [];
 		this.loaded = true;
 	}
 
@@ -249,6 +252,30 @@ export class PokerRoom extends DurableObject<Env> {
 				await this.ctx.storage.put('moderatorId', this.moderatorId);
 				break;
 			}
+			case 'kick': {
+				// Moderator-only, and only in a moderated room. Open rooms have no moderator.
+				if (!this.config.moderated || !this.isModerator(player)) return;
+				if (msg.playerId === player.id || !this.players.has(msg.playerId)) return;
+				this.players.delete(msg.playerId);
+				delete this.round.votes[msg.playerId];
+				if (!this.bannedIds.includes(msg.playerId)) this.bannedIds.push(msg.playerId);
+				await this.ctx.storage.put({
+					players: Object.fromEntries(this.players),
+					round: this.round,
+					banned: this.bannedIds
+				});
+				for (const sock of this.ctx.getWebSockets()) {
+					const att = sock.deserializeAttachment() as { playerId: string } | null;
+					if (att?.playerId === msg.playerId) {
+						this.send(sock, {
+							type: 'error',
+							message: 'The moderator removed you from this game.'
+						});
+						sock.close(1008, 'Removed from game');
+					}
+				}
+				break;
+			}
 			case 'claimModerator': {
 				if (!this.config.moderated) return;
 				if (this.moderatorId && this.onlineIds().has(this.moderatorId)) return;
@@ -324,6 +351,12 @@ export class PokerRoom extends DurableObject<Env> {
 	}
 
 	private async handleJoin(ws: WebSocket, msg: Extract<ClientMessage, { type: 'join' }>) {
+		if (msg.playerId && this.bannedIds.includes(msg.playerId)) {
+			this.send(ws, { type: 'error', message: 'You were removed from this game.' });
+			ws.close(1008, 'Removed from game');
+			return;
+		}
+
 		const name = sanitizeName(msg.name) || 'Anonymous';
 		const role: Role = msg.role === 'spectator' ? 'spectator' : 'player';
 
