@@ -28,3 +28,7 @@ worker-configuration.d.ts
 # Editors
 .idea
 .vscode
+
+# Playwright
+/test-results
+/playwright-report
