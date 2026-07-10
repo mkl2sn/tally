@@ -1,8 +1,12 @@
 import posthog from 'posthog-js';
-import { PUBLIC_POSTHOG_PROJECT_TOKEN } from '$env/static/public';
+import { PUBLIC_POSTHOG_PROJECT_TOKEN, PUBLIC_POSTHOG_ENABLED } from '$env/static/public';
 import type { HandleClientError } from '@sveltejs/kit';
 
+const posthogEnabled = PUBLIC_POSTHOG_ENABLED === 'true';
+
 export async function init() {
+	if (!posthogEnabled) return;
+
 	posthog.init(PUBLIC_POSTHOG_PROJECT_TOKEN, {
 		api_host: '/ingest',
 		ui_host: 'https://eu.posthog.com',
@@ -12,7 +16,9 @@ export async function init() {
 }
 
 export const handleError: HandleClientError = async ({ error, status, message }) => {
-	posthog.captureException(error);
+	if (posthogEnabled) {
+		posthog.captureException(error);
+	}
 
 	return { message, status };
 };

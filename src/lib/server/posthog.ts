@@ -1,5 +1,9 @@
 import { PostHog } from 'posthog-node';
-import { PUBLIC_POSTHOG_PROJECT_TOKEN, PUBLIC_POSTHOG_HOST } from '$env/static/public';
+import {
+	PUBLIC_POSTHOG_PROJECT_TOKEN,
+	PUBLIC_POSTHOG_HOST,
+	PUBLIC_POSTHOG_ENABLED
+} from '$env/static/public';
 
 /**
  * Fire-and-forget server event. Uses a fresh client per call: a shared client
@@ -10,6 +14,8 @@ export function captureServerEvent(
 	ctx: { waitUntil(promise: Promise<unknown>): void } | undefined,
 	event: Parameters<PostHog['capture']>[0]
 ) {
+	if (PUBLIC_POSTHOG_ENABLED !== 'true') return;
+
 	const posthog = new PostHog(PUBLIC_POSTHOG_PROJECT_TOKEN, {
 		host: PUBLIC_POSTHOG_HOST,
 		flushAt: 1,
