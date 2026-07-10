@@ -7,6 +7,8 @@
 	import IconUserPlus from '~icons/lucide/user-plus';
 	import IconMessageSquare from '~icons/lucide/message-square';
 	import IconX from '~icons/lucide/x';
+	import IconEye from '~icons/lucide/eye';
+	import IconEyeOff from '~icons/lucide/eye-off';
 	import Logo from '$lib/components/Logo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import PlayerSeat from '$lib/components/PlayerSeat.svelte';
@@ -48,11 +50,15 @@
 	let inviteUrl = $state('');
 	let now = $state(Date.now());
 	let localCountdownEndsAt = $state<number | null>(null);
+	let hideVote = $state(false);
+	let peeking = $state(false);
+	let peekTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const feedbackSurveyId = PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID;
 
 	onMount(() => {
 		name = localStorage.getItem('tally:name') ?? '';
+		hideVote = localStorage.getItem('tally:hideVote') === '1';
 		inviteUrl = location.href;
 		const session = storedSession(data.roomId);
 		if (session.playerId && session.secret && name) {
@@ -205,6 +211,28 @@
 			conn?.rename(trimmed);
 		}
 		renameOpen = false;
+	}
+
+	function toggleHideVote() {
+		hideVote = !hideVote;
+		localStorage.setItem('tally:hideVote', hideVote ? '1' : '0');
+	}
+
+	// Kurzer Klick schaltet um, Gedrückthalten zeigt die eigene Wahl kurz an (Peek).
+	function peekStart() {
+		if (!hideVote) return;
+		peekTimer = setTimeout(() => (peeking = true), 250);
+	}
+
+	function peekEnd() {
+		clearTimeout(peekTimer);
+		if (peeking) peeking = false;
+		else toggleHideVote();
+	}
+
+	function peekCancel() {
+		clearTimeout(peekTimer);
+		peeking = false;
 	}
 
 	function formatSeconds(total: number): string {
@@ -580,7 +608,7 @@
 					{#each snap.deck as card (card)}
 						<button
 							class="h-16 w-11 rounded-xl border text-lg font-bold transition-transform tabular-nums {you.vote ===
-							card
+								card && (!hideVote || peeking)
 								? '-translate-y-2 border-accent bg-accent text-accent-ink shadow-lg'
 								: 'border-line bg-surface hover:-translate-y-1 hover:border-accent'}"
 							onclick={() => toggleVote(card)}
@@ -589,6 +617,28 @@
 							{card}
 						</button>
 					{/each}
+					<Tooltip.Root>
+						<Tooltip.Trigger
+							class="btn btn-secondary btn-sm btn-icon self-center"
+							aria-label={hideVote ? 'Show your pick' : 'Hide your pick'}
+							aria-pressed={hideVote}
+							onpointerdown={peekStart}
+							onpointerup={peekEnd}
+							onpointerleave={peekCancel}
+							onclick={(e) => e.detail === 0 && toggleHideVote()}
+						>
+							{#if hideVote}
+								<IconEyeOff class="size-4" />
+							{:else}
+								<IconEye class="size-4" />
+							{/if}
+						</Tooltip.Trigger>
+						<Tooltip.Portal>
+							<Tooltip.Content sideOffset={8} class="tooltip-content">
+								{hideVote ? 'Pick hidden. Hold to peek, click to show' : 'Hide your pick from neighbors'}
+							</Tooltip.Content>
+						</Tooltip.Portal>
+					</Tooltip.Root>
 				</div>
 			{:else}
 				<p class="text-center text-sm text-muted">
