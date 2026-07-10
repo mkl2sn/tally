@@ -1,3 +1,4 @@
+import { PING_INTERVAL_MS } from '$lib/protocol';
 import type { ClientMessage, Role, RoomSnapshot, ServerMessage } from '$lib/protocol';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting' | 'closed';
@@ -27,6 +28,7 @@ export class RoomConnection {
 	private attempts = 0;
 	private destroyed = false;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	private pingWorker: Worker | null = null;
 
 	constructor(
 		private roomId: string,
@@ -36,6 +38,12 @@ export class RoomConnection {
 		// A closed tab never runs onDestroy, so signal a clean leave here: this
 		// fires the close frame the server needs to mark us offline right away.
 		window.addEventListener('pagehide', this.destroy);
+		// Heartbeat so the server can tell a dead socket from a quiet one. It
+		// runs in a worker because timers in hidden tabs are throttled to once
+		// a minute, which would trip the server's heartbeat timeout.
+		const src = `setInterval(() => postMessage(0), ${PING_INTERVAL_MS})`;
+		this.pingWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+		this.pingWorker.addEventListener('message', () => this.send({ type: 'ping' }));
 	}
 
 	private connect() {
@@ -119,6 +127,8 @@ export class RoomConnection {
 		this.destroyed = true;
 		if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
 		window.removeEventListener('pagehide', this.destroy);
+		this.pingWorker?.terminate();
+		this.pingWorker = null;
 		this.ws?.close();
 	};
 }

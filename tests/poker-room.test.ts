@@ -534,6 +534,32 @@ describe('PokerRoom', () => {
 		expect(res.status).toBe(404);
 	});
 
+	it('drops a player whose heartbeat stopped without a close frame', async () => {
+		const stub = await createRoom('room-heartbeat');
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+		const bob = await join(stub, 'Bob');
+		const bobJoined = await bob.next();
+		if (bobJoined.type !== 'joined') throw new Error('expected joined');
+		await alice.nextState(); // bob joined
+
+		// A killed tab sends no close frame: the socket stays open but silent.
+		await runInDurableObject(stub, (instance, state) => {
+			const { lastPing } = instance as unknown as { lastPing: Map<WebSocket, number> };
+			for (const ws of state.getWebSockets()) {
+				const att = ws.deserializeAttachment() as { playerId: string };
+				if (att.playerId === bobJoined.playerId) lastPing.set(ws, Date.now() - 60_000);
+			}
+		});
+
+		alice.send({ type: 'ping' });
+		const state = await alice.nextState();
+		const bobView = state.players.find((p) => p.name === 'Bob');
+		expect(bobView?.online).toBe(false);
+		expect(bobView?.lastSeen).toBeGreaterThan(0);
+		alice.close();
+	});
+
 	it('survives garbage websocket input without crashing the room', async () => {
 		const stub = await createRoom('room-garbage');
 		const alice = await join(stub, 'Alice');
