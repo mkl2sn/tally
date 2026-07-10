@@ -53,6 +53,8 @@
 	let hideVote = $state(false);
 	let peeking = $state(false);
 	let peekTimer: ReturnType<typeof setTimeout> | undefined;
+	let flashCard = $state<string | null>(null);
+	let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const feedbackSurveyId = PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID;
 
@@ -182,6 +184,12 @@
 		if (!conn || !snap || snap.phase !== 'voting') return;
 		const isDeselecting = you?.vote === card;
 		conn.vote(isDeselecting ? null : card);
+		if (hideVote) {
+			// Im Hide-Modus die geklickte Karte kurz aufleuchten lassen, sonst gibt es kein Feedback.
+			clearTimeout(flashTimer);
+			flashCard = isDeselecting ? null : card;
+			flashTimer = setTimeout(() => (flashCard = null), 500);
+		}
 		if (!isDeselecting) {
 			posthog.capture('vote_cast', { deck_size: snap.deck.length, round: snap.round });
 		}
@@ -607,8 +615,10 @@
 				>
 					{#each snap.deck as card (card)}
 						<button
-							class="h-16 w-11 rounded-xl border text-lg font-bold transition-transform tabular-nums {you.vote ===
-								card && (!hideVote || peeking)
+							class="h-16 w-11 rounded-xl border text-lg font-bold transition-transform tabular-nums {(you.vote ===
+								card &&
+								(!hideVote || peeking)) ||
+							flashCard === card
 								? '-translate-y-2 border-accent bg-accent text-accent-ink shadow-lg'
 								: 'border-line bg-surface hover:-translate-y-1 hover:border-accent'}"
 							onclick={() => toggleVote(card)}
