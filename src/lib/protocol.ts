@@ -31,6 +31,10 @@ export const MAX_CARD_LENGTH = 5;
 export const REVEAL_COUNTDOWN_MS = 3000;
 /** Offline players disappear from the presence list after this long. */
 export const OFFLINE_GRACE_MS = 30_000;
+/** Client heartbeat cadence. Keep well under HEARTBEAT_TIMEOUT_MS. */
+export const PING_INTERVAL_MS = 10_000;
+/** Sockets silent for this long are considered dead and closed server-side. */
+export const HEARTBEAT_TIMEOUT_MS = 30_000;
 
 export interface PlayerView {
 	id: string;
@@ -91,6 +95,7 @@ export interface RoomSnapshot {
 }
 
 export type ClientMessage =
+	| { type: 'ping' }
 	| { type: 'join'; name: string; role: Role; playerId?: string; secret?: string }
 	| { type: 'vote'; card: string | null }
 	| { type: 'reveal' }

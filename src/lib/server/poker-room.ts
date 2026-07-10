@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import {
+	HEARTBEAT_TIMEOUT_MS,
 	MAX_NAME_LENGTH,
 	MAX_ROOM_NAME_LENGTH,
 	REVEAL_COUNTDOWN_MS,
@@ -68,6 +69,13 @@ export class PokerRoom extends DurableObject<Env> {
 	private moderatorId: string | null = null;
 	private timer: TimerState | null = null;
 	private bannedIds: string[] = [];
+	/**
+	 * Last message time per socket, in memory only. A killed tab or dropped
+	 * network never sends a close frame, so the runtime keeps the socket
+	 * "open" indefinitely; this map is what lets us call it dead. Lost on
+	 * eviction, but an unknown socket just gets a fresh 30s clock.
+	 */
+	private lastPing = new Map<WebSocket, number>();
 
 	private async load() {
 		if (this.loaded) return;
@@ -130,6 +138,7 @@ export class PokerRoom extends DurableObject<Env> {
 		const pair = new WebSocketPair();
 		const [client, server] = Object.values(pair);
 		this.ctx.acceptWebSocket(server);
+		this.lastPing.set(server, Date.now());
 		return new Response(null, { status: 101, webSocket: client });
 	}
 
@@ -140,6 +149,12 @@ export class PokerRoom extends DurableObject<Env> {
 		try {
 			msg = JSON.parse(raw);
 		} catch {
+			return;
+		}
+
+		this.lastPing.set(ws, Date.now());
+		if (msg.type === 'ping') {
+			await this.closeDeadSockets();
 			return;
 		}
 
@@ -315,6 +330,7 @@ export class PokerRoom extends DurableObject<Env> {
 
 	async webSocketClose(ws: WebSocket) {
 		await this.load();
+		this.lastPing.delete(ws);
 		const playerId = (ws.deserializeAttachment() as { playerId: string } | null)?.playerId;
 		const player = playerId ? this.players.get(playerId) : undefined;
 		if (player && !this.onlineIds().has(player.id)) {
@@ -464,11 +480,41 @@ export class PokerRoom extends DurableObject<Env> {
 
 	private onlineIds(): Set<string> {
 		const ids = new Set<string>();
+		const now = Date.now();
 		for (const ws of this.ctx.getWebSockets()) {
+			if (now - (this.lastPing.get(ws) ?? now) > HEARTBEAT_TIMEOUT_MS) continue;
 			const att = ws.deserializeAttachment() as { playerId: string } | null;
 			if (att) ids.add(att.playerId);
 		}
 		return ids;
+	}
+
+	/**
+	 * Runs on every heartbeat: close sockets whose client went silent
+	 * (killed tab, sleeping laptop, dropped network) and tell everyone.
+	 */
+	private async closeDeadSockets() {
+		const now = Date.now();
+		const dead: WebSocket[] = [];
+		for (const ws of this.ctx.getWebSockets()) {
+			const last = this.lastPing.get(ws);
+			if (last === undefined) this.lastPing.set(ws, now);
+			else if (now - last > HEARTBEAT_TIMEOUT_MS) dead.push(ws);
+		}
+		if (dead.length === 0) return;
+
+		for (const ws of dead) {
+			// Keep the entry at 0 (stale) instead of deleting it: a closing
+			// socket can linger in getWebSockets() and must not count as
+			// online again. webSocketClose removes it for good.
+			this.lastPing.set(ws, 0);
+			ws.close(4002, 'Heartbeat timeout');
+			const playerId = (ws.deserializeAttachment() as { playerId: string } | null)?.playerId;
+			const player = playerId ? this.players.get(playerId) : undefined;
+			if (player && !this.onlineIds().has(player.id)) player.lastSeen = now;
+		}
+		await this.persistPlayers();
+		this.broadcast();
 	}
 
 	private pruneStalePlayers() {
