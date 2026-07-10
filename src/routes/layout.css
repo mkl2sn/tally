@@ -103,6 +103,18 @@ summary {
 	.btn-icon {
 		padding: 0.5rem;
 	}
+	.tooltip-content {
+		z-index: 60;
+		border-radius: 0.5rem;
+		background: var(--ink);
+		color: var(--surface);
+		padding: 0.25rem 0.5rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		line-height: 1;
+		white-space: nowrap;
+		box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 18%, transparent);
+	}
 
 	.field {
 		width: 100%;

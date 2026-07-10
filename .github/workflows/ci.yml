@@ -11,6 +11,7 @@ jobs:
     env:
       PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
       PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
+      PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID: ${{ vars.PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -35,6 +36,7 @@ jobs:
     env:
       PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
       PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
+      PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID: ${{ vars.PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

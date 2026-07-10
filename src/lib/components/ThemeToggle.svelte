@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Tooltip } from 'bits-ui';
 	import IconSun from '~icons/lucide/sun';
 	import IconMoon from '~icons/lucide/moon';
 
@@ -15,15 +16,21 @@
 	}
 </script>
 
-<button
-	onclick={toggle}
-	class="rounded-full p-2 text-muted transition-colors hover:bg-panel hover:text-ink"
-	aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-	title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
->
-	{#if dark}
-		<IconSun class="size-4" />
-	{:else}
-		<IconMoon class="size-4" />
-	{/if}
-</button>
+<Tooltip.Root>
+	<Tooltip.Trigger
+		onclick={toggle}
+		class="rounded-full p-2 text-muted transition-colors hover:bg-panel hover:text-ink"
+		aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+	>
+		{#if dark}
+			<IconSun class="size-4" />
+		{:else}
+			<IconMoon class="size-4" />
+		{/if}
+	</Tooltip.Trigger>
+	<Tooltip.Portal>
+		<Tooltip.Content sideOffset={8} class="tooltip-content">
+			{dark ? 'Light mode' : 'Dark mode'}
+		</Tooltip.Content>
+	</Tooltip.Portal>
+</Tooltip.Root>
