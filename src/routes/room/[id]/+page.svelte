@@ -20,6 +20,7 @@
 		MAX_NAME_LENGTH,
 		MAX_ROOM_NAME_LENGTH,
 		OFFLINE_GRACE_MS,
+		REVEAL_COUNTDOWN_MS,
 		countdownDisplaySeconds,
 		sanitizeDeck,
 		type PlayerView
@@ -46,6 +47,7 @@
 	let customDeckDraft = $state('');
 	let inviteUrl = $state('');
 	let now = $state(Date.now());
+	let localCountdownEndsAt = $state<number | null>(null);
 
 	const feedbackSurveyId = env.PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID;
 
@@ -77,10 +79,17 @@
 	const votedCount = $derived(activePlayers.filter((p) => p.hasVoted).length);
 	const revealed = $derived(snap?.phase === 'revealed');
 	const spread = $derived(revealed && snap?.result ? voteSpread(snap.result.votes) : null);
+	// Countdown lokal verankern: Server-Zeitstempel und Browser-Uhr driften
+	// auseinander, was sonst den gesamten Versatz auf die erste/letzte Ziffer legt.
+	$effect(() => {
+		if (snap?.phase === 'countdown') {
+			if (localCountdownEndsAt === null) localCountdownEndsAt = Date.now() + REVEAL_COUNTDOWN_MS;
+		} else {
+			localCountdownEndsAt = null;
+		}
+	});
 	const countdownSeconds = $derived(
-		snap?.phase === 'countdown' && snap.countdownEndsAt
-			? countdownDisplaySeconds(snap.countdownEndsAt - now)
-			: null
+		localCountdownEndsAt !== null ? countdownDisplaySeconds(localCountdownEndsAt - now) : null
 	);
 	const timerRemaining = $derived(
 		snap?.timer ? Math.max(0, Math.ceil((snap.timer.endsAt - now) / 1000)) : null
