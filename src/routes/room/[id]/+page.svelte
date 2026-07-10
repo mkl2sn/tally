@@ -278,6 +278,18 @@
 
 <svelte:head>
 	<title>{data.roomName} — Tally</title>
+	<meta name="robots" content="noindex" />
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="Tally" />
+	<meta property="og:title" content="{data.roomName} — Tally" />
+	<meta
+		property="og:description"
+		content="You're invited to a planning poker session. Join in one click — no account needed."
+	/>
+	<meta property="og:image" content="https://tallyplanning.com/og.png" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 {#if !conn}

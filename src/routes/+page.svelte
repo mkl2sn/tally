@@ -65,6 +65,20 @@
 		name="description"
 		content="Free real-time planning poker. Create a game, share the link, estimate together — no accounts, no setup."
 	/>
+	<link rel="canonical" href="https://tallyplanning.com/" />
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="Tally" />
+	<meta property="og:locale" content="en_US" />
+	<meta property="og:url" content="https://tallyplanning.com/" />
+	<meta property="og:title" content="Tally — real-time planning poker" />
+	<meta
+		property="og:description"
+		content="Free real-time planning poker. Create a game, share the link, estimate together — no accounts, no setup."
+	/>
+	<meta property="og:image" content="https://tallyplanning.com/og.png" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div class="mx-auto flex min-h-dvh max-w-3xl flex-col px-4">
