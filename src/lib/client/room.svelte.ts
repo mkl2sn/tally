@@ -33,6 +33,9 @@ export class RoomConnection {
 		private profile: { name: string; role: Role }
 	) {
 		this.connect();
+		// A closed tab never runs onDestroy, so signal a clean leave here: this
+		// fires the close frame the server needs to mark us offline right away.
+		window.addEventListener('pagehide', this.destroy);
 	}
 
 	private connect() {
@@ -112,9 +115,10 @@ export class RoomConnection {
 		this.send({ type: 'rename', name });
 	}
 
-	destroy() {
+	destroy = () => {
 		this.destroyed = true;
 		if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+		window.removeEventListener('pagehide', this.destroy);
 		this.ws?.close();
-	}
+	};
 }
