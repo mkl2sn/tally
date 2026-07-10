@@ -9,6 +9,7 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     env:
+      PUBLIC_POSTHOG_ENABLED: 'false'
       PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
       PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
       PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID: ${{ vars.PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID }}
@@ -34,6 +35,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
+      PUBLIC_POSTHOG_ENABLED: 'true'
       PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
       PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
       PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID: ${{ vars.PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID }}
