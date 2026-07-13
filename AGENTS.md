@@ -3,6 +3,7 @@
 ## General guidelines
 
 - Avoid em-dashes and emojis like the plague
+- Always write in english: code & variables, comments, commits, PRs etc.
 
 ## Commits and Pull Requests
 
