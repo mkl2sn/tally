@@ -482,7 +482,7 @@
 
 			<!-- The stage -->
 			<div
-				class="flex min-h-44 w-full max-w-2xl flex-col items-center justify-center gap-4 rounded-3xl border border-line bg-panel px-8 py-8"
+				class="flex min-h-52 w-full max-w-2xl flex-col items-center justify-center gap-4 rounded-3xl border border-line bg-panel px-8 py-8"
 			>
 				{#if countdownSeconds !== null}
 					{#key countdownSeconds}
