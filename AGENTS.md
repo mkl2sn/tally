@@ -32,3 +32,14 @@ Examples:
 
 - CSS: Use tailwind utility classes instead of inline styles
 - Error handling: Prefer explicit error handling with typed errors
+
+## Frontend architecture
+
+- Keep SvelteKit route components focused on orchestration.
+- Colocate route-specific components with their route.
+- Move code into `$lib` only when it has multiple real consumers.
+- Keep server-only code in `+*.server.ts` or `$lib/server`.
+- Prefer pure functions and `$derived` over state synchronization with `$effect`.
+- Do not add production dependencies during refactors.
+- Refactor large components in behavior-preserving, reviewable stages.
+- Run formatting, linting, Svelte checks, tests, and the production build.
