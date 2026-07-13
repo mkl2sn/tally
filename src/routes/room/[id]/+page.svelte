@@ -41,9 +41,13 @@
 	let settingsOpen = $state(false);
 	let inviteOpen = $state(false);
 	let renameOpen = $state(false);
+	let proWaitlistOpen = $state(false);
 	let confirmOpenRoom = $state(false);
 	let copied = $state(false);
 	let nameDraft = $state('');
+	let proWaitlistEmail = $state('');
+	let proWaitlistUseCase = $state('');
+	let proWaitlistSubmitted = $state(false);
 	let roomNameDraft = $state('');
 	let deckChoice = $state('fibonacci');
 	let customDeckDraft = $state('');
@@ -65,6 +69,8 @@
 		const session = storedSession(data.roomId);
 		if (session.playerId && session.secret && name) {
 			conn = new RoomConnection(data.roomId, { name, role: session.role ?? 'player' });
+		} else {
+			posthog.capture('join_screen_viewed', { room_id: data.roomId });
 		}
 		const interval = setInterval(() => (now = Date.now()), 300);
 		return () => clearInterval(interval);
@@ -204,11 +210,49 @@
 
 	function openFeedback() {
 		if (!feedbackSurveyId) return;
+		posthog.capture('feedback_opened', { room_id: data.roomId });
 		posthog.displaySurvey(feedbackSurveyId, {
 			displayType: DisplaySurveyType.Popover,
 			ignoreConditions: true,
 			ignoreDelay: true
 		});
+	}
+
+	function openProWaitlist() {
+		proWaitlistOpen = true;
+		proWaitlistSubmitted = false;
+		posthog.capture('pro_interest_opened', {
+			room_id: data.roomId,
+			round: snap?.round,
+			history_count: snap?.history.length ?? 0,
+			active_players: activePlayers.length,
+			source: 'room_footer'
+		});
+	}
+
+	function submitProWaitlist(event: SubmitEvent) {
+		event.preventDefault();
+		const email = proWaitlistEmail.trim().toLowerCase();
+		const useCase = proWaitlistUseCase.trim();
+		if (!email) return;
+
+		posthog.identify(email, { email });
+		posthog.capture('pro_waitlist_submitted', {
+			email,
+			use_case: useCase || undefined,
+			room_id: data.roomId,
+			round: snap?.round,
+			history_count: snap?.history.length ?? 0,
+			active_players: activePlayers.length,
+			source: 'room_footer',
+			wants_permanent_rooms: true,
+			wants_custom_urls: true,
+			wants_password_protection: true,
+			wants_persistent_history: true,
+			wants_csv_export: true
+		});
+		proWaitlistSubmitted = true;
+		proWaitlistUseCase = '';
 	}
 
 	function submitRename(event: SubmitEvent) {
@@ -445,7 +489,13 @@
 				<Tooltip.Root>
 					<Tooltip.Trigger
 						class="btn btn-secondary btn-sm btn-icon"
-						onclick={() => (historyOpen = true)}
+						onclick={() => {
+							historyOpen = true;
+							posthog.capture('history_opened', {
+								room_id: data.roomId,
+								history_count: snap.history.length
+							});
+						}}
 						aria-label={historyLabel}
 					>
 						<IconHistory class="size-4" />
@@ -701,6 +751,12 @@
 					</button>
 				{/if}
 			</div>
+			<div class="mx-auto mt-1 max-w-4xl text-center text-xs text-muted">
+				Need a room your team can reuse?
+				<button class="underline underline-offset-2 hover:text-ink" onclick={openProWaitlist}>
+					Join the Pro waitlist
+				</button>
+			</div>
 		</footer>
 	</div>
 
@@ -843,5 +899,53 @@
 			<input bind:value={nameDraft} required maxlength={MAX_NAME_LENGTH} class="field" />
 			<button type="submit" class="btn btn-primary btn-sm shrink-0">Save</button>
 		</form>
+	</Modal>
+
+	<Modal bind:open={proWaitlistOpen} title="Need a reusable room?">
+		<div class="grid gap-4">
+			<div class="grid gap-3 text-sm text-muted">
+				<p>I am exploring Tally Pro for teams that want:</p>
+				<ul class="list-disc space-y-1 pl-5">
+					<li>Permanent rooms</li>
+					<li>Custom URLs</li>
+					<li>Password protection</li>
+					<li>Persistent history</li>
+					<li>CSV export</li>
+				</ul>
+			</div>
+
+			{#if proWaitlistSubmitted}
+				<div class="rounded-xl border border-line bg-panel p-4 text-sm">
+					<p class="font-medium text-ink">Thanks, you are on the list.</p>
+					<p class="mt-1 text-muted">I will only use your email to follow up about Tally Pro.</p>
+				</div>
+			{:else}
+				<form onsubmit={submitProWaitlist} class="grid gap-3">
+					<label class="grid gap-1.5">
+						<span class="text-sm font-medium">Email</span>
+						<input
+							bind:value={proWaitlistEmail}
+							required
+							type="email"
+							placeholder="you@company.com"
+							class="field"
+						/>
+					</label>
+					<label class="grid gap-1.5">
+						<span class="text-sm font-medium">What would you use it for? <span class="text-muted">Optional</span></span>
+						<textarea
+							bind:value={proWaitlistUseCase}
+							rows="3"
+							placeholder="Team refinement, client planning, recurring sprint poker..."
+							class="field resize-none"
+						></textarea>
+					</label>
+					<p class="text-xs text-muted">
+						I will only use your email to follow up about Tally Pro. No spam.
+					</p>
+					<button type="submit" class="btn btn-primary">Join the waitlist</button>
+				</form>
+			{/if}
+		</div>
 	</Modal>
 {/if}
