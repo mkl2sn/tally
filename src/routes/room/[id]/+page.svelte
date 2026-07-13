@@ -278,6 +278,10 @@
 
 <svelte:head>
 	<title>{data.roomName} — Tally</title>
+	<meta
+		name="description"
+		content="You're invited to a planning poker session. Join in one click — no account needed."
+	/>
 	<meta name="robots" content="noindex" />
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content="Tally" />
