@@ -5,7 +5,6 @@
 	import IconSettings from '~icons/lucide/settings';
 	import IconHistory from '~icons/lucide/history';
 	import IconUserPlus from '~icons/lucide/user-plus';
-	import IconMessageSquare from '~icons/lucide/message-square';
 	import IconX from '~icons/lucide/x';
 	import IconEye from '~icons/lucide/eye';
 	import IconEyeOff from '~icons/lucide/eye-off';
@@ -29,8 +28,7 @@
 	} from '$lib/protocol';
 	import { voteSpread, outlierFor } from '$lib/scoring';
 	import type { PageProps } from './$types';
-	import posthog, { DisplaySurveyType } from 'posthog-js';
-	import { PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID } from '$env/static/public';
+	import posthog from 'posthog-js';
 
 	let { data }: PageProps = $props();
 
@@ -59,8 +57,6 @@
 	let peekTimer: ReturnType<typeof setTimeout> | undefined;
 	let flashCard = $state<string | null>(null);
 	let flashTimer: ReturnType<typeof setTimeout> | undefined;
-
-	const feedbackSurveyId = PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID;
 
 	onMount(() => {
 		name = localStorage.getItem('tally:name') ?? '';
@@ -206,16 +202,6 @@
 		copied = true;
 		setTimeout(() => (copied = false), 1500);
 		posthog.capture('invite_link_copied', { room_id: data.roomId });
-	}
-
-	function openFeedback() {
-		if (!feedbackSurveyId) return;
-		posthog.capture('feedback_opened', { room_id: data.roomId });
-		posthog.displaySurvey(feedbackSurveyId, {
-			displayType: DisplaySurveyType.Popover,
-			ignoreConditions: true,
-			ignoreDelay: true
-		});
 	}
 
 	function openProWaitlist() {
@@ -395,21 +381,6 @@
 			</h1>
 
 			<div class="flex items-center gap-2">
-				{#if feedbackSurveyId}
-					<Tooltip.Root>
-						<Tooltip.Trigger
-							class="btn btn-secondary btn-sm btn-icon"
-							onclick={openFeedback}
-							aria-label="Feedback"
-						>
-							<IconMessageSquare class="size-4" />
-						</Tooltip.Trigger>
-						<Tooltip.Portal>
-							<Tooltip.Content sideOffset={8} class="tooltip-content">Feedback</Tooltip.Content>
-						</Tooltip.Portal>
-					</Tooltip.Root>
-				{/if}
-
 				{#if snap.timer && timerRemaining !== null}
 					<span
 						class="rounded-full border border-line px-3 py-1.5 text-sm tabular-nums {timerRemaining ===

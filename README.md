@@ -30,6 +30,7 @@ Uses **pnpm**. `worker-configuration.d.ts` is generated, not committed: run `pnp
 after cloning or after changing `wrangler.jsonc`.
 
 ```sh
+cp .env.example .env
 pnpm install
 pnpm gen           # generate Env types from wrangler.jsonc
 pnpm dev           # vite dev — UI only, no Durable Object (no websockets, no room API)
@@ -57,10 +58,13 @@ pnpm test          # vitest (unit + DO integration in workerd)
 
 ## Deploy
 
-Deployment runs through GitHub Actions (`.github/workflows/ci.yml`): every push to
-`main` runs lint/check/test/build and then deploys with wrangler. Required repo
+Pushes to `main` and pull requests run checks only. Deployments are manual:
+in GitHub, open **Actions → CI → Run workflow**, select `main`, and run the workflow.
+The workflow runs all checks before deploying with wrangler. Required repo
 secrets: `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit permission) and
 `CLOUDFLARE_ACCOUNT_ID`.
+
+For optional PostHog analytics, see [Analytics setup](docs/posthog-setup-report.md).
 
 Manual deploy:
 

@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   checks:
@@ -12,7 +16,6 @@ jobs:
       PUBLIC_POSTHOG_ENABLED: 'false'
       PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
       PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
-      PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID: ${{ vars.PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -32,13 +35,12 @@ jobs:
 
   deploy:
     needs: checks
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       PUBLIC_POSTHOG_ENABLED: 'true'
       PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
       PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
-      PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID: ${{ vars.PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

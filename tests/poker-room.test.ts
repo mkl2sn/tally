@@ -36,6 +36,10 @@ class TestClient {
 		this.ws.send(JSON.stringify(msg));
 	}
 
+	sendRaw(raw: string) {
+		this.ws.send(raw);
+	}
+
 	async next(): Promise<ServerMessage> {
 		const queued = this.queue.shift();
 		if (queued) return queued;
@@ -565,6 +569,14 @@ describe('PokerRoom', () => {
 		const alice = await join(stub, 'Alice');
 		await alice.nextState();
 
+		// Validate messages from an authenticated player, not only anonymous sockets.
+		for (const raw of ['null', '[]', '{}', '{"type":"startTimer","seconds":1e999}']) {
+			alice.sendRaw(raw);
+		}
+		alice.sendRaw(JSON.stringify({ type: 'startTimer', seconds: 'soon' }));
+		alice.sendRaw(JSON.stringify({ type: 'setAutoReveal', value: 'true' }));
+		alice.sendRaw(JSON.stringify({ type: 'setWhoCanReveal', value: [null] }));
+
 		const res = await stub.fetch('https://test/ws', { headers: { Upgrade: 'websocket' } });
 		const raw = res.webSocket!;
 		raw.accept();
@@ -583,6 +595,9 @@ describe('PokerRoom', () => {
 		if (state.phase === 'voting') state = await alice.nextState();
 		expect(state.phase).toBe('revealed');
 		expect(state.result?.average).toBe(2);
+		expect(state.timer).toBeNull();
+		expect(state.autoReveal).toBe(false);
+		expect(state.whoCanReveal).toBe('all');
 		alice.close();
 	});
 });

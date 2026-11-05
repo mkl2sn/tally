@@ -1,38 +1,16 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { captureServerEvent } from '$lib/server/posthog';
+import { proxyPostHogRequest } from '$lib/server/posthog-proxy';
+import { PUBLIC_POSTHOG_ENABLED } from '$env/static/public';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
-	if (pathname.startsWith('/ingest')) {
-		const useAssetHost =
-			pathname.startsWith('/ingest/static/') || pathname.startsWith('/ingest/array/');
-		const hostname = useAssetHost ? 'eu-assets.i.posthog.com' : 'eu.i.posthog.com';
-
-		const url = new URL(event.request.url);
-		url.protocol = 'https:';
-		url.hostname = hostname;
-		url.port = '443';
-		url.pathname = pathname.replace(/^\/ingest/, '');
-
-		const headers = new Headers(event.request.headers);
-		headers.set('host', hostname);
-		headers.set('accept-encoding', '');
-
-		const clientIp = event.request.headers.get('x-forwarded-for') || event.getClientAddress();
-		if (clientIp) {
-			headers.set('x-forwarded-for', clientIp);
-		}
-
-		const response = await fetch(url.toString(), {
-			method: event.request.method,
-			headers,
-			body: event.request.body,
-			// @ts-expect-error - duplex is required for streaming request bodies
-			duplex: 'half'
-		});
-
-		return response;
+	if (
+		PUBLIC_POSTHOG_ENABLED === 'true' &&
+		(pathname === '/ingest' || pathname.startsWith('/ingest/'))
+	) {
+		return proxyPostHogRequest(event.request);
 	}
 
 	return resolve(event);

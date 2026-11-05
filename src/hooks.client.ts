@@ -11,6 +11,7 @@ export async function init() {
 		api_host: '/ingest',
 		ui_host: 'https://eu.posthog.com',
 		defaults: '2026-01-30',
+		disable_surveys: true,
 		capture_exceptions: true
 	});
 }

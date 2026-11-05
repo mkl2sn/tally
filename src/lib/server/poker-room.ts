@@ -17,6 +17,7 @@ import {
 	type WhoCanReveal
 } from '../protocol';
 import { computeRoundResult } from '../scoring';
+import { parseClientMessage } from './client-message';
 
 const EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 const HISTORY_LIMIT = 50;
@@ -144,13 +145,9 @@ export class PokerRoom extends DurableObject<Env> {
 
 	async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
 		await this.load();
-		if (!this.config || typeof raw !== 'string') return;
-		let msg: ClientMessage;
-		try {
-			msg = JSON.parse(raw);
-		} catch {
-			return;
-		}
+		if (!this.config) return;
+		const msg = parseClientMessage(raw);
+		if (!msg) return;
 
 		this.lastPing.set(ws, Date.now());
 		if (msg.type === 'ping') {
