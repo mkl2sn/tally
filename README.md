@@ -1,78 +1,136 @@
 # Tally
 
-Real-time planning poker on the Cloudflare stack. No accounts, no setup: create a
-game, share the link, estimate together.
+Real-time planning poker on Cloudflare. Create a game, share the link, and estimate
+together without accounts. Choose a preset or custom deck, join as a player or
+spectator, and review results and voting history.
 
 ![Tally demo room with six players and revealed estimates](docs/images/tally-demo.png)
 
-## Stack
-
-- **SvelteKit** (Svelte 5 runes) + **Tailwind v4**, deployed as a single Cloudflare Worker with static assets
-- **Durable Objects** for realtime: one room = one `PokerRoom` DO using the WebSocket Hibernation API
-- Room state and voting history live in DO storage; rooms expire 30 days after the last activity (alarm-based)
-
-## Architecture notes
-
-- `src/worker.ts` is the real worker entry (see `wrangler.jsonc`): it routes
-  `/ws/:roomId` upgrades to the `PokerRoom` DO and delegates everything else to the
-  SvelteKit worker.
-- adapter-cloudflare writes its generated worker to whatever `main` points to in the
-  wrangler config it reads. That's why the adapter gets its own `wrangler.build.jsonc`
-  (see `vite.config.ts`), which points `main` at `.svelte-kit/cloudflare/_worker.js`.
-- `src/worker.ts` imports the generated worker via the `sveltekit-worker` alias
-  (defined in `wrangler.jsonc`) so TypeScript never type-checks the generated build
-  output (declared in `src/svelte-worker.d.ts`).
-- `src/lib/protocol.ts` holds the shared client/server message types.
-- Player identity: the DO issues a `playerId` + `secret` per room, stored in
-  localStorage. Stable server-side IDs keep the door open for accounts later (D1).
-
 ## Develop
 
-Uses **pnpm**. `worker-configuration.d.ts` is generated, not committed: run `pnpm gen`
-after cloning or after changing `wrangler.jsonc`.
+Use Node.js 24 (the version used in CI) and pnpm 10.34.4 (pinned in
+[package.json](package.json)). From the repository root:
 
 ```sh
+pnpm install --frozen-lockfile
 cp .env.example .env
-pnpm install
-pnpm gen           # generate Env types from wrangler.jsonc
-pnpm dev           # vite dev — UI only, no Durable Object (no websockets, no room API)
-pnpm preview       # build first, then: full app under wrangler dev on :4173
+pnpm gen
+pnpm dev:full
 ```
 
-For realtime work use the build + wrangler dev cycle:
+Open `http://localhost:8787`. `pnpm dev:full` builds the app and starts the full
+Cloudflare Worker locally, including room creation and WebSockets. Re-run it after
+code changes to rebuild.
 
-```sh
-pnpm build && pnpm exec wrangler dev --port 8787
-```
+For UI work with Vite hot reload, use `pnpm dev`. This does not run the Durable
+Object, so room creation and WebSockets are unavailable. To preview an existing
+build on port 4173, run `pnpm preview` after `pnpm build`.
+
+`worker-configuration.d.ts` is generated and ignored by Git. Run `pnpm gen` after
+changing [wrangler.jsonc](wrangler.jsonc); `pnpm check` and `pnpm build` also
+regenerate these types.
+
+Keep the variables from [.env.example](.env.example) in `.env`, even when analytics
+is disabled. SvelteKit imports them at build time, so missing variables can prevent
+checks and builds from completing.
 
 ## Checks and tests
 
-Tooling is the oxc stack (oxlint + oxfmt, including Tailwind class sorting) and vitest.
-The Durable Object tests run inside workerd via `@cloudflare/vitest-pool-workers`
-(see `vitest.config.ts` + `wrangler.test.jsonc`).
+Run the standard checks before submitting changes:
 
 ```sh
-pnpm lint          # oxlint + oxfmt --check
-pnpm format        # oxfmt
-pnpm check         # wrangler types --check + svelte-check
-pnpm test          # vitest (unit + DO integration in workerd)
+pnpm format
+pnpm lint
+pnpm check
+pnpm test
+pnpm build
 ```
+
+| Command           | Purpose                                                         |
+| ----------------- | --------------------------------------------------------------- |
+| `pnpm format`     | Format files with oxfmt, including Tailwind class sorting       |
+| `pnpm lint`       | Run oxlint and check formatting with oxfmt                      |
+| `pnpm check`      | Generate Worker types, sync SvelteKit, and run svelte-check     |
+| `pnpm test`       | Run Vitest unit and Durable Object integration tests in workerd |
+| `pnpm test:watch` | Run Vitest in watch mode                                        |
+| `pnpm test:smoke` | Check room creation and error recovery against the built Worker |
+| `pnpm test:e2e`   | Run Playwright browser tests against the built Worker           |
+
+Smoke and browser tests require a prior build. Install Chromium before the first
+browser test run:
+
+```sh
+pnpm build
+pnpm test:smoke
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+The smoke and browser test runners start Wrangler automatically on ports 8788 and
+8789, respectively. On Linux, use `pnpm exec playwright install --with-deps chromium`
+to install browser system dependencies as well.
+
+See [the browser room joining regression](docs/browser-room-joining.md) for details
+of the delayed-hydration regression coverage.
+
+## Architecture
+
+- **SvelteKit with Svelte 5 runes and Tailwind CSS v4** runs as a single Cloudflare
+  Worker with static assets.
+- **Durable Objects** provide real-time rooms. Each room has one `PokerRoom` using
+  the WebSocket Hibernation API. Room state and voting history persist in Durable
+  Object storage; rooms expire after 30 days of inactivity.
+- [src/worker.ts](src/worker.ts) is the Worker entry point. It routes `/ws/:roomId`
+  upgrades to the room's Durable Object and delegates other requests to SvelteKit.
+- [wrangler.build.jsonc](wrangler.build.jsonc) configures the SvelteKit adapter's
+  generated Worker separately from the deployment entry point. The
+  `sveltekit-worker` alias in `wrangler.jsonc` connects the two.
+- [src/lib/protocol.ts](src/lib/protocol.ts) defines shared client/server messages.
+  The room issues a player ID and secret, which the client saves in localStorage
+  to reconnect with the same identity.
+- Server-only room and analytics code lives in `src/lib/server`; routes live in
+  `src/routes`.
+
+## Analytics
+
+PostHog is disabled by default in `.env.example`. To enable it locally, set
+`PUBLIC_POSTHOG_ENABLED=true` and replace `PUBLIC_POSTHOG_PROJECT_TOKEN` with your
+project token. `PUBLIC_POSTHOG_HOST` defaults to `https://eu.i.posthog.com`.
+Rebuild after changing these values because they are embedded at build time.
+
+The current integration targets PostHog's EU region: browser requests go through
+`/ingest`, whose proxy uses the EU ingestion and asset hosts. The browser UI host
+is also set to the EU region. Changing `PUBLIC_POSTHOG_HOST` alone only changes the
+server event destination.
 
 ## Deploy
 
-Pushes to `main` and pull requests run checks only. Deployments are manual:
-in GitHub, open **Actions → CI → Run workflow**, select `main`, and run the workflow.
-The workflow runs all checks before deploying with wrangler. Required repo
-secrets: `CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit permission) and
-`CLOUDFLARE_ACCOUNT_ID`.
+Pushes to `main` and pull requests run checks, the production build, smoke tests,
+and browser tests. Deployment is manual: in GitHub, open **Actions > CI > Run
+workflow**, select `main`, and run the workflow. Deployment runs only after checks
+pass.
 
-For optional PostHog analytics, see [Analytics setup](docs/posthog-setup-report.md).
+Configure these repository secrets for deployment:
 
-Manual deploy:
+- `CLOUDFLARE_API_TOKEN`: a Cloudflare API token with Workers Scripts:Edit permission.
+- `CLOUDFLARE_ACCOUNT_ID`: the target Cloudflare account ID.
+
+The deploy job enables analytics and reads `PUBLIC_POSTHOG_PROJECT_TOKEN` and
+`PUBLIC_POSTHOG_HOST` from GitHub Actions repository variables. Set these before
+deploying with analytics. The checks job keeps analytics disabled. See
+[the CI workflow](.github/workflows/ci.yml) for the exact configuration.
+
+To deploy locally with your Cloudflare credentials and local analytics settings:
 
 ```sh
-pnpm build && pnpm exec wrangler deploy
+pnpm build
+pnpm exec wrangler deploy
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and
+[AGENTS.md](AGENTS.md) for repository conventions.
 
 ## License
 
