@@ -7,7 +7,7 @@ import {
 
 /**
  * Fire-and-forget server event. Uses a fresh client per call: a shared client
- * keeps pending I/O across requests, which workerd forbids — a later flush()
+ * keeps pending I/O across requests, which workerd forbids. A later flush()
  * then hangs forever waiting on a promise from a dead request context.
  */
 export function captureServerEvent(

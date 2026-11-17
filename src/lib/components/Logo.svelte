@@ -3,7 +3,7 @@
 </script>
 
 <span class="inline-flex items-center gap-2">
-	<!-- Tally mark: four strokes, the fifth crosses — a vote counted. -->
+	<!-- Tally mark: four strokes, the fifth crosses: a vote counted. -->
 	<svg
 		width={size}
 		height={size}

@@ -61,20 +61,20 @@
 </script>
 
 <svelte:head>
-	<title>Tally — real-time planning poker</title>
+	<title>Tally: real-time planning poker</title>
 	<meta
 		name="description"
-		content="Free real-time planning poker. Create a game, share the link, estimate together — no accounts, no setup."
+		content="Free real-time planning poker. Create a game, share the link, estimate together. No accounts, no setup."
 	/>
 	<link rel="canonical" href="https://tallyplanning.com/" />
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content="Tally" />
 	<meta property="og:locale" content="en_US" />
 	<meta property="og:url" content="https://tallyplanning.com/" />
-	<meta property="og:title" content="Tally — real-time planning poker" />
+	<meta property="og:title" content="Tally: real-time planning poker" />
 	<meta
 		property="og:description"
-		content="Free real-time planning poker. Create a game, share the link, estimate together — no accounts, no setup."
+		content="Free real-time planning poker. Create a game, share the link, estimate together. No accounts, no setup."
 	/>
 	<meta property="og:image" content="https://tallyplanning.com/og.png" />
 	<meta property="og:image:width" content="1200" />
@@ -94,7 +94,7 @@
 				Get everyone to the <span class="text-accent">same number</span>.
 			</h1>
 			<p class="mt-4 text-lg text-muted">
-				Free real-time planning poker. Create a game, share the link, estimate together — no
+				Free real-time planning poker. Create a game, share the link, estimate together. No
 				accounts, no setup.
 			</p>
 		</div>
@@ -151,7 +151,7 @@
 										sideOffset={6}
 										class="z-50 max-w-72 rounded-xl border border-line bg-surface p-3 text-sm shadow-lg"
 									>
-										In an open game there is no moderator — everyone can manage rounds and
+										In an open game there is no moderator, so everyone can manage rounds and
 										settings. Turn this off to run the game as its moderator.
 									</Tooltip.Content>
 								</Tooltip.Portal>
@@ -181,13 +181,13 @@
 			</li>
 			<li>
 				<strong class="block font-medium text-ink">Spectator mode</strong>
-				Watch without a hand — for stakeholders and the politely undecided.
+				Watch without a hand (for stakeholders and the politely undecided).
 			</li>
 		</ul>
 	</main>
 
 	<footer class="flex flex-col items-start justify-between gap-x-6 gap-y-2 border-t border-line py-4 text-sm text-muted sm:flex-row sm:items-center">
-		<p>Tally — planning poker without the ceremony. Rooms expire 30 days after the last activity.</p>
+		<p>Tally: planning poker without the ceremony. Rooms expire 30 days after the last activity.</p>
 		<GitHubLink />
 	</footer>
 </div>

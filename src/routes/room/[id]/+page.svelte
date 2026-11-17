@@ -270,18 +270,18 @@
 {/snippet}
 
 <svelte:head>
-	<title>{data.roomName} — Tally</title>
+	<title>{data.roomName} | Tally</title>
 	<meta
 		name="description"
-		content="You're invited to a planning poker session. Join in one click — no account needed."
+		content="You're invited to a planning poker session. Join in one click. No account needed."
 	/>
 	<meta name="robots" content="noindex" />
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content="Tally" />
-	<meta property="og:title" content="{data.roomName} — Tally" />
+	<meta property="og:title" content="{data.roomName} | Tally" />
 	<meta
 		property="og:description"
-		content="You're invited to a planning poker session. Join in one click — no account needed."
+		content="You're invited to a planning poker session. Join in one click. No account needed."
 	/>
 	<meta property="og:image" content="https://tallyplanning.com/og.png" />
 	<meta property="og:image:width" content="1200" />
@@ -449,7 +449,7 @@
 
 		{#if conn.status === 'reconnecting'}
 			<div class="bg-danger px-4 py-1.5 text-center text-sm text-white">
-				Connection lost — reconnecting…
+				Connection lost. Reconnecting…
 			</div>
 		{/if}
 
@@ -584,7 +584,7 @@
 							class="btn btn-secondary btn-sm"
 							onclick={() => conn?.send({ type: 'claimModerator' })}
 						>
-							Moderator left — take over
+							Moderator left. Take over
 						</button>
 					{/if}
 				{/if}
@@ -787,7 +787,7 @@
 					<div class="grid gap-1.5 border-t border-line pt-4">
 						<span class="text-sm font-medium">Open game</span>
 						<p class="text-sm text-muted">
-							Remove the moderator role for good — everyone can manage the game. This cannot be
+							Remove the moderator role for good. Everyone can manage the game. This cannot be
 							undone.
 						</p>
 						{#if confirmOpenRoom}
