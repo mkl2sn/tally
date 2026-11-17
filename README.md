@@ -111,9 +111,10 @@ server event destination.
 ## Deploy
 
 Pushes to `main` and pull requests run checks, the production build, smoke tests,
-and browser tests. Deployment is manual: in GitHub, open **Actions > CI > Run
+and browser tests. Deployment is manual: in GitHub, open **Actions > Deploy to production > Run
 workflow**, select `main`, and run the workflow. Deployment runs only after checks
-pass.
+pass. Manual runs require repository write access; public visitors cannot deploy.
+The deployment workflow must be on the default branch to appear in GitHub.
 
 Configure these repository secrets for deployment:
 
@@ -123,7 +124,8 @@ Configure these repository secrets for deployment:
 The deploy job enables analytics and reads `PUBLIC_POSTHOG_PROJECT_TOKEN` and
 `PUBLIC_POSTHOG_HOST` from GitHub Actions repository variables. Set these before
 deploying with analytics. The checks job keeps analytics disabled. See
-[the CI workflow](.github/workflows/ci.yml) for the exact configuration.
+[the CI workflow](.github/workflows/ci.yml) and
+[the deployment workflow](.github/workflows/deploy.yml) for the exact configuration.
 
 To deploy locally with your Cloudflare credentials and local analytics settings:
 
