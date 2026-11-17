@@ -22,14 +22,13 @@
 		MAX_NAME_LENGTH,
 		MAX_ROOM_NAME_LENGTH,
 		OFFLINE_GRACE_MS,
-		REVEAL_COUNTDOWN_MS,
-		countdownDisplaySeconds,
 		sanitizeDeck,
 		type PlayerView
 	} from '$lib/protocol';
 	import { voteSpread, outlierFor } from '$lib/scoring';
 	import type { PageProps } from './$types';
 	import SessionTimer from './SessionTimer.svelte';
+	import RevealCountdown from './RevealCountdown.svelte';
 	import posthog from 'posthog-js';
 
 	let { data }: PageProps = $props();
@@ -50,7 +49,6 @@
 	let customDeckDraft = $state('');
 	let inviteUrl = $state('');
 	let now = $state(Date.now());
-	let localCountdownEndsAt = $state<number | null>(null);
 	let hideVote = $state(false);
 	let peeking = $state(false);
 	let peekTimer: ReturnType<typeof setTimeout> | undefined;
@@ -90,18 +88,6 @@
 	const votedCount = $derived(activePlayers.filter((p) => p.hasVoted).length);
 	const revealed = $derived(snap?.phase === 'revealed');
 	const spread = $derived(revealed && snap?.result ? voteSpread(snap.result.votes) : null);
-	// Countdown lokal verankern: Server-Zeitstempel und Browser-Uhr driften
-	// auseinander, was sonst den gesamten Versatz auf die erste/letzte Ziffer legt.
-	$effect(() => {
-		if (snap?.phase === 'countdown') {
-			if (localCountdownEndsAt === null) localCountdownEndsAt = Date.now() + REVEAL_COUNTDOWN_MS;
-		} else {
-			localCountdownEndsAt = null;
-		}
-	});
-	const countdownSeconds = $derived(
-		localCountdownEndsAt !== null ? countdownDisplaySeconds(localCountdownEndsAt - now) : null
-	);
 	const timerRemaining = $derived(
 		snap?.timer
 			? Math.min(snap.timer.duration, Math.max(0, Math.ceil((snap.timer.endsAt - now) / 1000)))
@@ -464,12 +450,8 @@
 			<div
 				class="flex min-h-52 w-full max-w-2xl flex-col items-center justify-center gap-4 rounded-3xl border border-line bg-panel px-8 py-8"
 			>
-				{#if countdownSeconds !== null}
-					{#key countdownSeconds}
-						<div class="pulse-count text-7xl font-extrabold tracking-tight">
-							{countdownSeconds}
-						</div>
-					{/key}
+				{#if snap.phase === 'countdown' && snap.countdownEndsAt !== null}
+					<RevealCountdown endsAt={snap.countdownEndsAt} serverNow={snap.serverNow} />
 				{:else if revealed && snap.result}
 					{@const ringLength = 2 * Math.PI * 44}
 					<div class="flex items-center gap-10">

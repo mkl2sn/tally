@@ -596,10 +596,13 @@ describe('PokerRoom', () => {
 
 		alice.send({ type: 'vote', card: '5' });
 		await alice.nextState();
+		const beforeReveal = Date.now();
 		alice.send({ type: 'reveal' });
 		const counting = await alice.nextState();
 		expect(counting.phase).toBe('countdown');
 		expect(counting.countdownEndsAt).toBeGreaterThan(Date.now());
+		expect(counting.serverNow).toBeGreaterThanOrEqual(beforeReveal);
+		expect(counting.countdownEndsAt! - counting.serverNow).toBeLessThanOrEqual(3000);
 
 		// Rewind the countdown instead of sleeping through it, then fire the alarm.
 		await runInDurableObject(stub, (instance) => {

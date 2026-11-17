@@ -584,6 +584,7 @@ export class PokerRoom extends DurableObject<Env> {
 			deck: this.config!.deck,
 			phase: this.round.phase,
 			round: this.round.n,
+			serverNow: Date.now(),
 			countdownEndsAt: this.round.countdownEndsAt,
 			autoReveal: this.config!.autoReveal,
 			revealCountdown: this.config!.revealCountdown,

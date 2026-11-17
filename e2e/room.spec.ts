@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
-import type { ServerMessage } from '../src/lib/protocol';
+import type { RoomSnapshot, ServerMessage } from '../src/lib/protocol';
 
 async function createRoom(request: APIRequestContext, overrides: Record<string, unknown> = {}) {
 	const res = await request.post('/api/rooms', {
@@ -34,6 +34,113 @@ async function twoPlayers(browser: Browser, roomId: string) {
 }
 
 const seatOf = (page: Page, name: string) => page.locator('.deal-in', { hasText: name });
+
+for (const remaining of [3000, 1500]) {
+	test(`reveal countdown follows second boundaries with ${remaining} ms remaining`, async ({
+		page,
+		request
+	}, testInfo) => {
+		const roomId = await createRoom(request, { revealCountdown: true });
+		const browserNow = new Date('2026-11-17T12:00:00Z');
+		const serverNow = browserNow.getTime() - 3_600_000;
+		const errors: string[] = [];
+		let sendSnapshot!: (patch: Partial<RoomSnapshot>) => void;
+		page.on('pageerror', (error) => errors.push(error.message));
+		await page.clock.install({ time: browserNow });
+		await page.clock.pauseAt(browserNow);
+		await page.routeWebSocket('**/ws/**', (socket) => {
+			socket.onMessage(() => {
+				const state: RoomSnapshot = {
+					you: 'alice',
+					roomName: 'E2E Room',
+					deck: ['1', '2', '3', '5', '8'],
+					phase: 'countdown',
+					round: 1,
+					serverNow,
+					countdownEndsAt: serverNow + remaining,
+					autoReveal: false,
+					revealCountdown: true,
+					whoCanReveal: 'all',
+					showAverage: true,
+					moderated: false,
+					players: [
+						{
+							id: 'alice',
+							name: 'Alice',
+							role: 'player',
+							online: true,
+							lastSeen: 0,
+							joinedAt: serverNow,
+							hasVoted: true,
+							vote: '3',
+							isModerator: true
+						}
+					],
+					result: null,
+					timer: null,
+					history: []
+				};
+				sendSnapshot = (patch) => {
+					socket.send(JSON.stringify({ type: 'state', state: { ...state, ...patch } }));
+				};
+				sendSnapshot({});
+			});
+		});
+		await joinRoom(page, roomId, 'Alice');
+		const countdown = page.locator('.pulse-count');
+		await expect(countdown).toHaveText(String(Math.ceil(remaining / 1000)));
+		await page.screenshot({ path: testInfo.outputPath('countdown.png') });
+		await page.clock.setFixedTime(new Date(browserNow.getTime() + 86_400_000));
+		let elapsed = 0;
+		for (let second = Math.ceil(remaining / 1000) - 1; second >= 1; second--) {
+			const boundary = remaining - second * 1000;
+			await page.clock.runFor(boundary - elapsed - 1);
+			await expect(countdown).toHaveText(String(second + 1));
+			await page.clock.runFor(1);
+			await expect(countdown).toHaveText(String(second));
+			elapsed = boundary;
+		}
+		// A fresh snapshot must preserve the shared deadline instead of restarting the countdown.
+		sendSnapshot({ serverNow: serverNow + elapsed, roomName: 'Updated room' });
+		await expect(page.getByRole('heading', { name: 'Updated room' })).toBeVisible();
+		await expect(countdown).toHaveText('1');
+		await page.clock.runFor(remaining - elapsed + 1000);
+		await expect(countdown).toHaveText('1');
+		sendSnapshot({
+			phase: 'revealed',
+			countdownEndsAt: null,
+			result: { average: 3, median: 3, agreement: 1, distribution: [], votes: [] }
+		});
+		await expect(countdown).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Start next round' })).toBeVisible();
+		expect(errors).toEqual([]);
+	});
+}
+
+test('two players count down and reveal their cards together', async ({ browser, request }) => {
+	const roomId = await createRoom(request, { revealCountdown: true });
+	const { alice, bob, close } = await twoPlayers(browser, roomId);
+	try {
+		await alice.getByRole('button', { name: '3', exact: true }).click();
+		await bob.getByRole('button', { name: '5', exact: true }).click();
+		await expect(alice.getByText('2 of 2 voted')).toBeVisible();
+		await alice.getByRole('button', { name: 'Reveal cards' }).click();
+		for (const digit of ['3', '2', '1']) {
+			await Promise.all(
+				[alice, bob].map((page) => expect(page.locator('.pulse-count')).toHaveText(digit))
+			);
+		}
+		await Promise.all(
+			[alice, bob].map(async (page) => {
+				await expect(page.locator('.pulse-count')).toHaveCount(0);
+				await expect(page.getByRole('button', { name: 'Start next round' })).toBeVisible();
+				await expect(seatOf(page, 'Bob').locator('.flip-inner')).toHaveClass(/flipped/);
+			})
+		);
+	} finally {
+		await close();
+	}
+});
 
 test('the join form waits for hydration before accepting input', async ({ page, request }) => {
 	const roomId = await createRoom(request);
