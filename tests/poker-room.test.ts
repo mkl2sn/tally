@@ -472,6 +472,102 @@ describe('PokerRoom', () => {
 		alice.close();
 	});
 
+	it('adjusts the shared deadline by 30 seconds without restarting the timer', async () => {
+		const stub = await createRoom('room-adjust-timer', { moderated: true });
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+		const bob = await join(stub, 'Bob');
+		await bob.nextState();
+		await alice.nextState();
+		alice.send({ type: 'startTimer', seconds: 60 });
+		const original = (await alice.nextState()).timer!;
+		await bob.nextState();
+
+		alice.send({ type: 'adjustTimer', seconds: 30 });
+		const extended = (await alice.nextState()).timer!;
+		expect(extended.endsAt).toBe(original.endsAt + 30_000);
+		expect(extended.duration).toBe(90);
+		expect(extended.initialDuration).toBe(60);
+		expect((await bob.nextState()).timer).toEqual(extended);
+
+		// Separate adjustments compose against the latest server deadline.
+		alice.send({ type: 'adjustTimer', seconds: -30 });
+		alice.send({ type: 'adjustTimer', seconds: -30 });
+		await alice.nextState();
+		const shortened = (await alice.nextState()).timer!;
+		expect(shortened.endsAt).toBe(original.endsAt - 30_000);
+		expect(shortened.duration).toBe(30);
+		expect(shortened.initialDuration).toBe(60);
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.get('timer')).toEqual(shortened);
+		});
+		alice.close();
+		bob.close();
+	});
+
+	it('clamps adjustments at zero and one hour and extends expired timers from now', async () => {
+		const stub = await createRoom('room-adjust-timer-limits', { moderated: true });
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+		alice.send({ type: 'startTimer', seconds: 10 });
+		await alice.nextState();
+		alice.send({ type: 'adjustTimer', seconds: -30 });
+		const expired = (await alice.nextState()).timer!;
+		expect(expired.endsAt).toBeLessThanOrEqual(Date.now());
+		expect(expired.duration).toBeGreaterThan(0);
+
+		// An old completion must add a fresh 30 seconds, rather than remain expired.
+		await runInDurableObject(stub, async (instance) => {
+			const room = instance as unknown as { timer: { endsAt: number; duration: number } };
+			room.timer.endsAt = Date.now() - 60_000;
+		});
+		const before = Date.now();
+		alice.send({ type: 'adjustTimer', seconds: 30 });
+		const resumed = (await alice.nextState()).timer!;
+		expect(resumed.endsAt).toBeGreaterThanOrEqual(before + 30_000);
+		expect(resumed.endsAt).toBeLessThanOrEqual(Date.now() + 30_000);
+		expect(resumed.duration).toBe(30);
+
+		alice.send({ type: 'startTimer', seconds: 3600 });
+		await alice.nextState();
+		alice.send({ type: 'adjustTimer', seconds: 30 });
+		const capped = (await alice.nextState()).timer!;
+		expect(capped.endsAt).toBeLessThanOrEqual(Date.now() + 3_600_000);
+		expect(capped.duration).toBe(3600);
+		alice.close();
+	});
+
+	it('ignores adjustments without a timer and rejects players without management permission', async () => {
+		const stub = await createRoom('room-adjust-timer-permissions', { moderated: true });
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+		alice.send({ type: 'adjustTimer', seconds: 30 });
+		alice.send({ type: 'vote', card: '1' });
+		expect((await alice.nextState()).timer).toBeNull();
+		alice.send({ type: 'startTimer', seconds: 60 });
+		const original = (await alice.nextState()).timer;
+		const bob = await join(stub, 'Bob');
+		await bob.nextState();
+		await alice.nextState();
+		bob.send({ type: 'adjustTimer', seconds: 30 });
+		bob.send({ type: 'vote', card: '2' });
+		expect((await bob.nextState()).timer).toEqual(original);
+		alice.close();
+		bob.close();
+	});
+
+	it.each([-30, 30] as const)('rejects a %i second adjustment in an open game', async (seconds) => {
+		const stub = await createRoom(`room-open-timer-adjust-${seconds}`);
+		const alice = await join(stub, 'Alice');
+		await alice.nextState();
+		alice.send({ type: 'startTimer', seconds: 60 });
+		const original = (await alice.nextState()).timer;
+		alice.send({ type: 'adjustTimer', seconds });
+		alice.send({ type: 'vote', card: '1' });
+		expect((await alice.nextState()).timer).toEqual(original);
+		alice.close();
+	});
+
 	it('auto-reveals once every online player has voted', async () => {
 		const stub = await createRoom('room-autoreveal', { autoReveal: true });
 		const alice = await join(stub, 'Alice');

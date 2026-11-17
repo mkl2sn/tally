@@ -307,7 +307,26 @@ export class PokerRoom extends DurableObject<Env> {
 			case 'startTimer': {
 				if (!this.canManage(player)) return;
 				const seconds = Math.min(3600, Math.max(10, Math.floor(msg.seconds)));
-				this.timer = { endsAt: Date.now() + seconds * 1000, duration: seconds };
+				this.timer = {
+					endsAt: Date.now() + seconds * 1000,
+					duration: seconds,
+					initialDuration: seconds
+				};
+				await this.ctx.storage.put('timer', this.timer);
+				break;
+			}
+			case 'adjustTimer': {
+				if (!this.config.moderated || !this.isModerator(player) || !this.timer) return;
+				const now = Date.now();
+				const expired = this.timer.endsAt <= now;
+				this.timer = {
+					initialDuration: this.timer.initialDuration ?? this.timer.duration,
+					endsAt: Math.max(
+						now,
+						Math.min(now + 3_600_000, Math.max(now, this.timer.endsAt) + msg.seconds * 1000)
+					),
+					duration: Math.max(1, Math.min(3600, (expired ? 0 : this.timer.duration) + msg.seconds))
+				};
 				await this.ctx.storage.put('timer', this.timer);
 				break;
 			}

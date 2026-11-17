@@ -73,6 +73,8 @@ export interface HistoryEntry extends RoundResult {
 export interface TimerState {
 	endsAt: number;
 	duration: number;
+	/** Original progress-ring base. Optional for previously persisted timers. */
+	initialDuration?: number;
 }
 
 export interface RoomSnapshot {
@@ -113,6 +115,7 @@ export type ClientMessage =
 	| { type: 'claimModerator' }
 	| { type: 'openRoom' }
 	| { type: 'startTimer'; seconds: number }
+	| { type: 'adjustTimer'; seconds: -30 | 30 }
 	| { type: 'stopTimer' };
 
 export type ServerMessage =

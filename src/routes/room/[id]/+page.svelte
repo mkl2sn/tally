@@ -29,6 +29,7 @@
 	} from '$lib/protocol';
 	import { voteSpread, outlierFor } from '$lib/scoring';
 	import type { PageProps } from './$types';
+	import SessionTimer from './SessionTimer.svelte';
 	import posthog from 'posthog-js';
 
 	let { data }: PageProps = $props();
@@ -102,7 +103,9 @@
 		localCountdownEndsAt !== null ? countdownDisplaySeconds(localCountdownEndsAt - now) : null
 	);
 	const timerRemaining = $derived(
-		snap?.timer ? Math.max(0, Math.ceil((snap.timer.endsAt - now) / 1000)) : null
+		snap?.timer
+			? Math.min(snap.timer.duration, Math.max(0, Math.ceil((snap.timer.endsAt - now) / 1000)))
+			: null
 	);
 	const moderatorOnline = $derived(snap?.players.some((p) => p.isModerator && p.online) ?? false);
 	const canReveal = $derived(
@@ -236,11 +239,6 @@
 		peeking = false;
 	}
 
-	function formatSeconds(total: number): string {
-		const m = Math.floor(total / 60);
-		const s = total % 60;
-		return `${m}:${String(s).padStart(2, '0')}`;
-	}
 </script>
 
 {#snippet tallyMarks(total: number, voted: number)}
@@ -334,7 +332,7 @@
 	<div class="grid min-h-dvh place-items-center text-muted">Joining…</div>
 {:else}
 	<div class="flex min-h-dvh flex-col">
-		<header class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3">
+		<header class="relative flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3">
 			<a href="/" aria-label="Tally home" class="shrink-0"><Logo size={26} /></a>
 			<h1 class="min-w-0 flex-1 truncate text-lg font-bold">
 				{snap.roomName}
@@ -346,65 +344,44 @@
 			</h1>
 
 			<div class="flex items-center gap-2">
-				{#if snap.timer && timerRemaining !== null}
-					<span
-						class="rounded-full border border-line px-3 py-1.5 text-sm tabular-nums {timerRemaining ===
-						0
-							? 'text-danger'
-							: ''}"
-					>
-						{timerRemaining === 0 ? "Time's up" : formatSeconds(timerRemaining)}
-						{#if canManage}
-							<Tooltip.Root>
-								<Tooltip.Trigger
-									class="ml-1 align-middle text-muted hover:text-ink"
-									onclick={() => conn?.send({ type: 'stopTimer' })}
-									aria-label="Stop timer"
-								>
-									<IconX class="size-3.5" />
-								</Tooltip.Trigger>
-								<Tooltip.Portal>
-									<Tooltip.Content sideOffset={8} class="tooltip-content">
-										Stop timer
-									</Tooltip.Content>
-								</Tooltip.Portal>
-							</Tooltip.Root>
-						{/if}
-					</span>
-				{:else if canManage}
-					{#snippet timerTrigger({ props: menuProps }: { props: Record<string, unknown> })}
-						<Tooltip.Root>
-							<Tooltip.Trigger
-								{...menuProps}
-								class="btn btn-secondary btn-sm btn-icon"
-								aria-label="Timer"
-							>
-								<IconTimer class="size-4" />
-							</Tooltip.Trigger>
-							<Tooltip.Portal>
-								<Tooltip.Content sideOffset={8} class="tooltip-content">Timer</Tooltip.Content>
-							</Tooltip.Portal>
-						</Tooltip.Root>
-					{/snippet}
-					<DropdownMenu.Root>
-						<DropdownMenu.Trigger child={timerTrigger} />
-						<DropdownMenu.Portal>
-							<DropdownMenu.Content
-								sideOffset={6}
-								align="end"
-								class="z-50 min-w-28 rounded-xl border border-line bg-surface p-1 shadow-lg"
-							>
-								{#each [60, 120, 300, 600] as seconds (seconds)}
-									<DropdownMenu.Item
-										class="cursor-pointer rounded-lg px-3 py-2 text-sm data-highlighted:bg-panel"
-										onSelect={() => conn?.send({ type: 'startTimer', seconds })}
+				{#if canManage}
+					<div class="size-8.5 shrink-0">
+						{#if !snap.timer}
+							{#snippet timerTrigger({ props: menuProps }: { props: Record<string, unknown> })}
+								<Tooltip.Root>
+									<Tooltip.Trigger
+										{...menuProps}
+										class="btn btn-secondary btn-sm btn-icon"
+										aria-label="Timer"
 									>
-										{seconds / 60} min
-									</DropdownMenu.Item>
-								{/each}
-							</DropdownMenu.Content>
-						</DropdownMenu.Portal>
-					</DropdownMenu.Root>
+										<IconTimer class="size-4" />
+									</Tooltip.Trigger>
+									<Tooltip.Portal>
+										<Tooltip.Content sideOffset={8} class="tooltip-content">Timer</Tooltip.Content>
+									</Tooltip.Portal>
+								</Tooltip.Root>
+							{/snippet}
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger child={timerTrigger} />
+								<DropdownMenu.Portal>
+									<DropdownMenu.Content
+										sideOffset={6}
+										align="end"
+										class="z-50 min-w-28 rounded-xl border border-line bg-surface p-1 shadow-lg"
+									>
+										{#each [60, 120, 180, 240, 300] as seconds (seconds)}
+											<DropdownMenu.Item
+												class="cursor-pointer rounded-lg px-3 py-2 text-sm data-highlighted:bg-panel"
+												onSelect={() => conn?.send({ type: 'startTimer', seconds })}
+											>
+												{seconds / 60} min
+											</DropdownMenu.Item>
+										{/each}
+									</DropdownMenu.Content>
+								</DropdownMenu.Portal>
+							</DropdownMenu.Root>
+						{/if}
+					</div>
 				{/if}
 
 				{#if canManage}
@@ -445,6 +422,18 @@
 				</button>
 				<ThemeToggle />
 			</div>
+			{#if snap.timer && timerRemaining !== null}
+				<div class="pointer-events-none absolute inset-x-4 top-full z-20 flex justify-end pt-3 sm:inset-x-6">
+					<SessionTimer
+						remaining={timerRemaining}
+						duration={snap.timer.initialDuration ?? snap.timer.duration}
+						{canManage}
+						canAdjust={snap.moderated && isMod}
+						onstop={() => conn?.send({ type: 'stopTimer' })}
+						onadjust={(seconds) => conn?.send({ type: 'adjustTimer', seconds })}
+					/>
+				</div>
+			{/if}
 		</header>
 
 		{#if conn.status === 'reconnecting'}
@@ -453,7 +442,7 @@
 			</div>
 		{/if}
 
-		<main class="flex flex-1 flex-col items-center justify-center gap-5 px-4 py-6">
+		<main class="flex flex-1 flex-col items-center justify-center gap-5 px-4 pt-36 pb-6">
 			<div class="flex min-h-24 flex-wrap items-end justify-center gap-3">
 				{#each topSeats as player (player.id)}
 					<PlayerSeat

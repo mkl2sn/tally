@@ -25,7 +25,12 @@ describe('untrusted WebSocket input', () => {
 		{ type: 'transferModerator', playerId: {} },
 		{ type: 'kick', playerId: 42 },
 		{ type: 'startTimer', seconds: '60' },
-		{ type: 'startTimer', seconds: null }
+		{ type: 'startTimer', seconds: null },
+		{ type: 'adjustTimer', seconds: '30' },
+		{ type: 'adjustTimer', seconds: 0 },
+		{ type: 'adjustTimer', seconds: 31 },
+		{ type: 'adjustTimer', seconds: -31 },
+		{ type: 'adjustTimer', seconds: null }
 	])('rejects invalid message fields: %j', (message) => {
 		expect(parseClientMessage(JSON.stringify(message))).toBeNull();
 	});
@@ -48,6 +53,8 @@ describe('untrusted WebSocket input', () => {
 		{ type: 'setShowAverage', value: false },
 		{ type: 'startTimer', seconds: 60 },
 		{ type: 'stopTimer' },
+		{ type: 'adjustTimer', seconds: 30 },
+		{ type: 'adjustTimer', seconds: -30 },
 		{ type: 'ping' }
 	])('preserves valid client messages: %j', (message) => {
 		expect(parseClientMessage(JSON.stringify(message))).toEqual(message);

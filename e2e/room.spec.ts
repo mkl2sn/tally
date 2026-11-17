@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
+import type { ServerMessage } from '../src/lib/protocol';
 
 async function createRoom(request: APIRequestContext, overrides: Record<string, unknown> = {}) {
 	const res = await request.post('/api/rooms', {
@@ -199,6 +200,294 @@ test('seat labels face away from the table and keep cards aligned', async ({
 				});
 			}
 			await host.getByRole('button', { name: 'Start next round' }).click();
+		}
+	} finally {
+		await Promise.all(contexts.map((context) => context.close()));
+	}
+});
+
+for (const minutes of [1, 2, 3, 4, 5]) {
+	test(`a ${minutes} minute timer starts at its configured duration`, async ({ page, request }) => {
+		const roomId = await createRoom(request);
+		let endsAt = 0;
+		page.on('websocket', (socket) => {
+			socket.on('framereceived', ({ payload }) => {
+				const message = JSON.parse(payload.toString()) as ServerMessage;
+				if (message.type === 'state' && message.state.timer) {
+					endsAt = message.state.timer.endsAt;
+				}
+			});
+		});
+		await joinRoom(page, roomId, 'Alice');
+
+		// Keep the displayed clock behind the server, as between the 300 ms updates.
+		await page.clock.setFixedTime(new Date(Date.now() - 200));
+		await page.getByRole('button', { name: 'Timer', exact: true }).click();
+		await expect(page.getByRole('menuitem')).toHaveText([
+			'1 min',
+			'2 min',
+			'3 min',
+			'4 min',
+			'5 min'
+		]);
+		await page.getByRole('menuitem', { name: `${minutes} min`, exact: true }).click();
+
+		const panel = page.getByRole('region', { name: 'Session timer' });
+		const timer = panel.getByRole('timer', { name: 'Time remaining' });
+		await expect(timer).toHaveText(`${minutes}:00`);
+		await expect(page.getByRole('button', { name: 'Timer', exact: true })).toHaveCount(0);
+
+		await page.clock.setFixedTime(new Date(endsAt - (minutes * 60 - 1) * 1000));
+		await expect(timer).toHaveText(`${minutes - 1}:59`);
+		await page.clock.setFixedTime(new Date(endsAt - 10_000));
+		await expect(panel.getByRole('status')).toHaveText('Ending soon');
+		await expect(timer).toHaveText('0:10');
+		await page.clock.setFixedTime(new Date(endsAt - 1));
+		await expect(timer).toHaveText('0:01');
+		await page.clock.setFixedTime(new Date(endsAt));
+		await expect(timer).toHaveText('0:00');
+		await expect(panel.getByRole('status')).toHaveText("Time's up");
+		await page.getByRole('button', { name: 'Stop timer', exact: true }).click();
+		await expect(page.getByRole('button', { name: 'Timer', exact: true })).toBeVisible();
+	});
+}
+
+test('timer completion stays visible to every player across screen sizes and themes', async ({
+	browser,
+	request
+}, testInfo) => {
+	const roomId = await createRoom(request, { moderated: true });
+	const { alice, bob, close } = await twoPlayers(browser, roomId);
+	const errors: string[] = [];
+	for (const page of [alice, bob]) {
+		page.on('pageerror', (error) => errors.push(error.message));
+	}
+	try {
+		await alice.setViewportSize({ width: 1440, height: 900 });
+		await bob.emulateMedia({ reducedMotion: 'reduce' });
+		for (const page of [alice, bob]) {
+			await page.clock.setFixedTime(new Date(Date.now() - 200));
+		}
+		await alice.getByRole('button', { name: 'Timer', exact: true }).click();
+		await alice.getByRole('menuitem', { name: '1 min', exact: true }).click();
+		for (const page of [alice, bob]) {
+			await expect(page.getByRole('region', { name: 'Session timer' })).toBeVisible();
+		}
+		await expect(bob.getByRole('button', { name: 'Stop timer' })).toHaveCount(0);
+		await expect(bob.getByRole('button', { name: 'Add 30 seconds' })).toHaveCount(0);
+		await expect(bob.getByRole('button', { name: 'Remove 30 seconds' })).toHaveCount(0);
+		await alice.getByRole('button', { name: 'Add 30 seconds' }).click();
+		for (const page of [alice, bob]) {
+			await expect(page.getByRole('timer', { name: 'Time remaining' })).toHaveText('1:30');
+		}
+		await alice.getByRole('button', { name: 'Remove 30 seconds' }).click();
+		for (const page of [alice, bob]) {
+			await expect(page.getByRole('timer', { name: 'Time remaining' })).toHaveText('1:00');
+		}
+		await alice.screenshot({
+			path: testInfo.outputPath('timer-running.png'),
+			animations: 'disabled'
+		});
+
+		for (const page of [alice, bob]) {
+			await page.clock.setFixedTime(new Date(Date.now() + 61_000));
+			await expect(page.getByRole('status')).toHaveText("Time's up");
+			await expect(page.getByRole('timer', { name: 'Time remaining' })).toHaveText('0:00');
+		}
+		await expect(alice.getByRole('button', { name: 'Remove 30 seconds' })).toHaveCount(0);
+		await expect(alice.getByRole('button', { name: 'Add 30 seconds' })).toHaveCount(0);
+		for (const width of [320, 768, 1024, 1440]) {
+			await bob.setViewportSize({ width, height: 900 });
+			const panel = bob.getByRole('region', { name: 'Session timer' });
+			await expect(panel).toBeInViewport();
+			const bounds = await panel.boundingBox();
+			expect(bounds!.x).toBeGreaterThanOrEqual(0);
+			expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+			await bob.screenshot({
+				path: testInfo.outputPath(`timer-expired-${width}.png`),
+				animations: 'disabled'
+			});
+		}
+		await bob.getByRole('button', { name: 'Switch to dark mode' }).click();
+		await bob.screenshot({
+			path: testInfo.outputPath('timer-expired-dark.png'),
+			animations: 'disabled'
+		});
+		await alice.getByRole('button', { name: 'Stop timer' }).focus();
+		await alice.keyboard.press('Enter');
+		await expect(bob.getByRole('region', { name: 'Session timer' })).toHaveCount(0);
+		expect(errors).toEqual([]);
+	} finally {
+		await close();
+	}
+});
+
+for (const width of [320, 768, 1440]) {
+	test(`starting and stopping the timer keeps the table in place at ${width}px`, async ({
+		page,
+		request
+	}, testInfo) => {
+		await page.setViewportSize({ width, height: 900 });
+		const roomId = await createRoom(request);
+		await joinRoom(page, roomId, 'Alice');
+		const table = page.locator('main > div').nth(1);
+		const before = await table.boundingBox();
+		await page.getByRole('button', { name: 'Timer', exact: true }).click();
+		await page.getByRole('menuitem', { name: '1 min', exact: true }).click();
+		const panel = page.getByRole('region', { name: 'Session timer' });
+		await expect(panel).toBeVisible();
+		await expect.soft(panel.getByRole('button', { name: 'Add 30 seconds' })).toHaveCount(0);
+		await expect.soft(panel.getByRole('button', { name: 'Remove 30 seconds' })).toHaveCount(0);
+		const ring = await panel.locator('svg').nth(0).boundingBox();
+		const icon = await panel.locator('svg').nth(1).boundingBox();
+		expect.soft(icon!.x + icon!.width / 2).toBeCloseTo(ring!.x + ring!.width / 2, 1);
+		expect.soft(icon!.y + icon!.height / 2).toBeCloseTo(ring!.y + ring!.height / 2, 1);
+		const during = await table.boundingBox();
+		expect(during!.y).toBe(before!.y);
+		expect(during!.x).toBe(before!.x);
+		await expect(page.getByText('Everyone sees the same countdown.')).toHaveCount(0);
+		const bounds = await panel.boundingBox();
+		expect(bounds!.width).toBeLessThanOrEqual(260);
+		expect(bounds!.height).toBeLessThanOrEqual(120);
+		if (width < 640) {
+			const card = await seatOf(page, 'Alice').locator('.flip-scene').boundingBox();
+			expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(card!.y);
+		}
+		await page.screenshot({
+			path: testInfo.outputPath('compact-timer.png'),
+			animations: 'disabled'
+		});
+		await page.getByRole('button', { name: 'Stop timer' }).click();
+		await expect(panel).toHaveCount(0);
+		expect(await table.boundingBox()).toEqual(before);
+	});
+}
+
+for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+	test(`the completion icon shakes three times with motion preference ${reducedMotion}`, async ({
+		page,
+		request
+	}) => {
+		await page.emulateMedia({ reducedMotion });
+		const roomId = await createRoom(request);
+		await joinRoom(page, roomId, 'Alice');
+		await page.getByRole('button', { name: 'Timer', exact: true }).click();
+		await page.getByRole('menuitem', { name: '1 min', exact: true }).click();
+		await expect(page.getByRole('timer', { name: 'Time remaining' })).toBeVisible();
+		const bell = page.locator('[data-timer-bell]');
+		const shaking =
+			reducedMotion === 'no-preference'
+				? page.waitForFunction(() =>
+						document
+							.querySelector('[data-timer-bell]')
+							?.getAnimations()
+							.some((animation) => animation.playState === 'running')
+					)
+				: null;
+		await page.clock.setFixedTime(new Date(Date.now() + 61_000));
+		await expect(page.getByRole('status')).toHaveText("Time's up");
+		if (shaking) {
+			await shaking;
+			const timing = await bell.evaluate((element) =>
+				element.getAnimations()[0].effect!.getTiming()
+			);
+			expect(timing.duration).toBe(480);
+			expect(timing.iterations).toBe(3);
+			await bell.evaluate(async (element) =>
+				Promise.all(element.getAnimations().map((animation) => animation.finished))
+			);
+		}
+		expect(await bell.evaluate((element) => element.getAnimations().length)).toBe(0);
+		await page.reload();
+		await expect(page.getByRole('status')).toHaveText("Time's up");
+		expect(await bell.evaluate((element) => element.getAnimations().length)).toBe(0);
+	});
+}
+
+test('timer adjustments preserve the countdown pace', async ({ page, request }) => {
+	const roomId = await createRoom(request, { moderated: true });
+	let endsAt = 0;
+	page.on('websocket', (socket) => {
+		socket.on('framereceived', ({ payload }) => {
+			const message = JSON.parse(payload.toString()) as ServerMessage;
+			if (message.type === 'state' && message.state.timer) endsAt = message.state.timer.endsAt;
+		});
+	});
+	await joinRoom(page, roomId, 'Alice');
+	await page.getByRole('button', { name: 'Timer', exact: true }).click();
+	await page.getByRole('menuitem', { name: '1 min', exact: true }).click();
+	const timer = page.getByRole('timer', { name: 'Time remaining' });
+	await expect(timer).toBeVisible();
+	let browserNow = endsAt - 40_000;
+	await page.clock.setFixedTime(new Date(browserNow));
+	await expect(timer).toHaveText('0:40');
+	const ring = page.getByRole('region', { name: 'Session timer' }).locator('circle[pathLength]');
+	expect(Number(await ring.getAttribute('stroke-dashoffset'))).toBeCloseTo(100 / 3);
+
+	const originalDeadline = endsAt;
+	await page.getByRole('button', { name: 'Add 30 seconds' }).click();
+	await expect(timer).toHaveText('1:10');
+	await expect(ring).toHaveAttribute('stroke-dashoffset', '0');
+	expect(endsAt).toBe(originalDeadline + 30_000);
+	await page.reload();
+	await expect(timer).toHaveText('1:10');
+	await expect(ring).toHaveAttribute('stroke-dashoffset', '0');
+	for (const expected of ['1:09', '1:08', '1:07', '1:06', '1:05']) {
+		browserNow += 1000;
+		await page.clock.setFixedTime(new Date(browserNow));
+		await expect(timer).toHaveText(expected);
+	}
+	await page.getByRole('button', { name: 'Remove 30 seconds' }).click();
+	await expect(timer).toHaveText('0:35');
+	expect(Number(await ring.getAttribute('stroke-dashoffset'))).toBeCloseTo(100 * (1 - 35 / 60));
+	expect(endsAt).toBe(originalDeadline);
+	for (const expected of ['0:34', '0:33', '0:32', '0:31', '0:30']) {
+		browserNow += 1000;
+		await page.clock.setFixedTime(new Date(browserNow));
+		await expect(timer).toHaveText(expected);
+	}
+});
+
+test('the timer never covers players in a short six-player room', async ({
+	browser,
+	request
+}, testInfo) => {
+	const roomId = await createRoom(request, { moderated: true });
+	const contexts = [];
+	const pages: Page[] = [];
+	try {
+		for (const name of ['Alice', 'Bob', 'Carol', 'Dave', 'Erin', 'Frank']) {
+			const context = await browser.newContext();
+			contexts.push(context);
+			const page = await context.newPage();
+			pages.push(page);
+			await joinRoom(page, roomId, name);
+		}
+		const host = pages[0];
+		for (const viewport of [
+			{ width: 640, height: 480 },
+			{ width: 1024, height: 600 }
+		]) {
+			await host.setViewportSize(viewport);
+			const table = host.locator('main > div').nth(1);
+			const before = await table.boundingBox();
+			await host.getByRole('button', { name: 'Timer', exact: true }).click();
+			await host.getByRole('menuitem', { name: '1 min', exact: true }).click();
+			const panel = host.getByRole('region', { name: 'Session timer' });
+			await expect(panel).toBeVisible();
+			const bounds = await panel.boundingBox();
+			for (const name of ['Alice', 'Carol', 'Erin']) {
+				const card = await seatOf(host, name).locator('.flip-scene').boundingBox();
+				expect(card!.y).toBeGreaterThanOrEqual(bounds!.y + bounds!.height);
+			}
+			expect(await table.boundingBox()).toEqual(before);
+			await host.screenshot({
+				path: testInfo.outputPath(`six-players-${viewport.width}.png`),
+				animations: 'disabled'
+			});
+			await host.getByRole('button', { name: 'Stop timer' }).click();
+			await expect(panel).toHaveCount(0);
+			expect(await table.boundingBox()).toEqual(before);
 		}
 	} finally {
 		await Promise.all(contexts.map((context) => context.close()));

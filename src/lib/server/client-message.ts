@@ -42,6 +42,8 @@ function isClientMessage(value: unknown): value is ClientMessage {
 		case 'transferModerator':
 		case 'kick':
 			return typeof msg.playerId === 'string';
+		case 'adjustTimer':
+			return msg.seconds === 30 || msg.seconds === -30;
 		case 'startTimer':
 			return typeof msg.seconds === 'number' && Number.isFinite(msg.seconds);
 		default:
