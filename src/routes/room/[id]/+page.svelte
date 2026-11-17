@@ -10,6 +10,7 @@
 	import IconEyeOff from '~icons/lucide/eye-off';
 	import Logo from '$lib/components/Logo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import GitHubLink from '$lib/components/GitHubLink.svelte';
 	import PlayerSeat from '$lib/components/PlayerSeat.svelte';
 	import HistoryModal from '$lib/components/HistoryModal.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
@@ -663,7 +664,7 @@
 				</p>
 			{/if}
 
-			<div class="mx-auto mt-2 flex max-w-4xl items-center justify-center gap-3 text-sm text-muted">
+			<div class="mx-auto mt-2 flex max-w-4xl flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted">
 				<span>
 					Playing as <strong class="text-ink">{you.name}</strong>
 					<button
@@ -685,6 +686,8 @@
 						Switch to spectator
 					</button>
 				{/if}
+				<span aria-hidden="true">·</span>
+				<GitHubLink />
 			</div>
 		</footer>
 	</div>

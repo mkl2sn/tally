@@ -4,6 +4,7 @@
 	import IconHelp from '~icons/lucide/circle-help';
 	import Logo from '$lib/components/Logo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import GitHubLink from '$lib/components/GitHubLink.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import { DECK_PRESETS, MAX_DECK_SIZE, MAX_ROOM_NAME_LENGTH } from '$lib/protocol';
@@ -185,7 +186,8 @@
 		</ul>
 	</main>
 
-	<footer class="border-t border-line py-4 text-sm text-muted">
-		Tally — planning poker without the ceremony. Rooms expire 30 days after the last activity.
+	<footer class="flex flex-col items-start justify-between gap-x-6 gap-y-2 border-t border-line py-4 text-sm text-muted sm:flex-row sm:items-center">
+		<p>Tally — planning poker without the ceremony. Rooms expire 30 days after the last activity.</p>
+		<GitHubLink />
 	</footer>
 </div>
