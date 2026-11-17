@@ -83,7 +83,7 @@
 
 <div class="mx-auto flex min-h-dvh max-w-3xl flex-col px-4">
 	<header class="flex items-center justify-between py-5">
-		<Logo size={30} wordmark beta />
+		<Logo size={30} wordmark />
 		<ThemeToggle />
 	</header>
 
