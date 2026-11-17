@@ -1,5 +1,5 @@
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ClientMessage, Role, RoomSnapshot, ServerMessage } from '../src/lib/protocol';
 
 const EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
@@ -737,6 +737,12 @@ describe('PokerRoom', () => {
 		await alice.nextState();
 		alice.close();
 
+		// Wait for the close handler to finish updating activity and scheduling cleanup.
+		await vi.waitFor(() =>
+			runInDurableObject(stub, async (_instance, state) => {
+				expect(await state.storage.getAlarm()).toBeLessThanOrEqual(Date.now() + 86_400_000);
+			})
+		);
 		await runInDurableObject(stub, async (_instance, state) => {
 			await state.storage.put('lastActivity', Date.now() - EXPIRY_MS - 1000);
 		});
