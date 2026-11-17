@@ -3,6 +3,8 @@
 Real-time planning poker on the Cloudflare stack. No accounts, no setup: create a
 game, share the link, estimate together.
 
+![Tally demo room with six players and revealed estimates](docs/images/tally-demo.png)
+
 ## Stack
 
 - **SvelteKit** (Svelte 5 runes) + **Tailwind v4**, deployed as a single Cloudflare Worker with static assets
