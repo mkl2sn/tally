@@ -8,10 +8,14 @@ spectator, and review results and voting history.
 
 ## Develop
 
-Use Node.js 24 (the version used in CI) and pnpm 10.34.4 (pinned in
-[package.json](package.json)). From the repository root:
+Use Node.js 26.13.1 (LTS, pinned in [.nvmrc](.nvmrc) and used in CI) and
+pnpm 12.21.0 (pinned in [package.json](package.json)). With
+[nvm](https://github.com/nvm-sh/nvm) installed, run from the repository root:
 
 ```sh
+nvm install
+nvm use
+npm install --global pnpm@12.21.0
 pnpm install --frozen-lockfile
 cp .env.example .env
 pnpm gen
