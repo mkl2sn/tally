@@ -67,6 +67,119 @@ test('two players join and see each other', async ({ browser, request }) => {
 	await close();
 });
 
+test('closing a tab marks the player offline and removes their seat without room activity', async ({
+	browser,
+	request
+}, testInfo) => {
+	test.setTimeout(45_000);
+	const roomId = await createRoom(request);
+	const { alice, bob, close } = await twoPlayers(browser, roomId);
+	try {
+		await expect(seatOf(alice, 'Bob')).toBeVisible();
+		await bob.close();
+		const seat = seatOf(alice, 'Bob');
+		await expect(seat.getByRole('button', { name: 'Offline' })).toBeVisible();
+		await expect(seat).not.toHaveClass(/opacity-40/);
+		await expect(seat.locator('.flip-scene')).toHaveClass(/opacity-40/);
+		await seat.getByRole('button', { name: 'Offline' }).focus();
+		await expect(alice.getByRole('tooltip')).toContainText('Seat disappears after 30 seconds');
+		await alice.screenshot({ path: testInfo.outputPath('player-offline.png') });
+		await expect(seatOf(alice, 'Bob')).toHaveCount(0, { timeout: 35_000 });
+	} finally {
+		await close();
+	}
+});
+
+test('offline status stays readable beside revealed outliers across themes and screen sizes', async ({
+	browser,
+	request
+}, testInfo) => {
+	const roomId = await createRoom(request);
+	const { alice, bob, close } = await twoPlayers(browser, roomId);
+	const carol = await browser.newPage();
+	const errors: string[] = [];
+	alice.on('pageerror', (error) => errors.push(error.message));
+	try {
+		await joinRoom(carol, roomId, 'Carol');
+		await carol.getByRole('button', { name: '5', exact: true }).click();
+		await alice.getByRole('button', { name: '3', exact: true }).click();
+		await bob.getByRole('button', { name: '8', exact: true }).click();
+		await expect(alice.getByText('3 of 3 voted')).toBeVisible();
+		await alice.getByRole('button', { name: 'Reveal cards' }).click();
+		await expect(seatOf(alice, 'Bob')).toContainText('highest');
+		await bob.close();
+		const seat = seatOf(alice, 'Bob');
+		await expect(seat.getByRole('button', { name: 'Offline' })).toBeVisible();
+		await expect(seat).toContainText('highest');
+		await expect(seat.getByText('Bob', { exact: true })).toHaveCSS('opacity', '1');
+		await expect(seat.locator('.flip-scene')).toHaveCSS('opacity', '0.4');
+		for (const theme of ['light', 'dark']) {
+			if (theme === 'dark')
+				await alice.getByRole('button', { name: 'Switch to dark mode' }).click();
+			for (const width of [320, 768, 1440]) {
+				await alice.setViewportSize({ width, height: 1100 });
+				await alice.emulateMedia({ reducedMotion: 'reduce' });
+				const status = seat.getByRole('button', { name: 'Offline' });
+				await alice.keyboard.press('Tab');
+				await status.focus();
+				await expect(alice.getByRole('tooltip')).toContainText('Disconnected');
+				await expect(status).toBeInViewport();
+				await alice.screenshot({ path: testInfo.outputPath(`offline-${theme}-${width}.png`) });
+			}
+		}
+		expect(errors).toEqual([]);
+	} finally {
+		await close();
+		await carol.close();
+	}
+});
+
+test('offline labels sit outside names and keep cards aligned on both sides of the table', async ({
+	browser,
+	request
+}, testInfo) => {
+	const roomId = await createRoom(request);
+	const { alice, bob, close } = await twoPlayers(browser, roomId);
+	const carol = await browser.newPage();
+	const dave = await browser.newPage();
+	try {
+		await alice.emulateMedia({ reducedMotion: 'reduce' });
+		await joinRoom(carol, roomId, 'Carol');
+		await joinRoom(dave, roomId, 'Dave');
+		await bob.close();
+		await carol.close();
+		for (const width of [320, 768, 1440]) {
+			await alice.setViewportSize({ width, height: 1100 });
+			for (const [name, neighbor, position] of [
+				['Carol', 'Alice', 'top'],
+				['Bob', 'Dave', 'bottom']
+			]) {
+				const seat = seatOf(alice, name);
+				const status = seat.getByRole('button', { name: 'Offline' });
+				await expect(status).toBeVisible();
+				const label = await status.boundingBox();
+				const playerName = await seat.getByText(name, { exact: true }).boundingBox();
+				const card = await seat.locator('.flip-scene').boundingBox();
+				const neighborCard = await seatOf(alice, neighbor).locator('.flip-scene').boundingBox();
+				expect(card!.y).toBeCloseTo(neighborCard!.y, 0);
+				expect(label!.x + label!.width / 2).toBeCloseTo(card!.x + card!.width / 2, 0);
+				if (position === 'top') {
+					expect(label!.y + label!.height).toBeLessThanOrEqual(playerName!.y);
+					expect(playerName!.y + playerName!.height).toBeLessThanOrEqual(card!.y);
+				} else {
+					expect(card!.y + card!.height).toBeLessThanOrEqual(playerName!.y);
+					expect(playerName!.y + playerName!.height).toBeLessThanOrEqual(label!.y);
+				}
+			}
+			await alice.screenshot({ path: testInfo.outputPath(`offline-placement-${width}.png`) });
+		}
+	} finally {
+		await close();
+		await carol.close();
+		await dave.close();
+	}
+});
+
 test('a vote is visible as "voted" but the card stays hidden', async ({ browser, request }) => {
 	const roomId = await createRoom(request);
 	const { alice, bob, close } = await twoPlayers(browser, roomId);

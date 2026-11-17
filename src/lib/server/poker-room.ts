@@ -345,6 +345,8 @@ export class PokerRoom extends DurableObject<Env> {
 	}
 
 	async webSocketClose(ws: WebSocket) {
+		// Complete the close handshake before computing and broadcasting presence.
+		ws.close(1000, 'Connection closed');
 		await this.load();
 		this.lastPing.delete(ws);
 		const playerId = (ws.deserializeAttachment() as { playerId: string } | null)?.playerId;
@@ -359,27 +361,27 @@ export class PokerRoom extends DurableObject<Env> {
 
 	async alarm() {
 		await this.load();
+		if (!this.config) return;
 		const now = Date.now();
-
-		if (this.round.phase === 'countdown' && this.round.countdownEndsAt !== null) {
-			if (now >= this.round.countdownEndsAt - 50) {
-				await this.finalizeReveal();
-				this.broadcast();
-				await this.touch();
-			} else {
-				await this.ctx.storage.setAlarm(this.round.countdownEndsAt);
-			}
-			return;
-		}
-
 		const lastActivity = ((await this.ctx.storage.get('lastActivity')) as number) ?? 0;
 		if (now >= lastActivity + EXPIRY_MS) {
 			for (const ws of this.ctx.getWebSockets()) ws.close(1001, 'Room expired');
 			await this.ctx.storage.deleteAll();
 			this.loaded = false;
-		} else {
-			await this.ctx.storage.setAlarm(lastActivity + EXPIRY_MS);
+			return;
 		}
+
+		let changed = await this.pruneStalePlayers();
+		if (
+			this.round.phase === 'countdown' &&
+			this.round.countdownEndsAt !== null &&
+			now >= this.round.countdownEndsAt - 50
+		) {
+			await this.finalizeReveal();
+			changed = true;
+		}
+		if (changed) this.broadcast();
+		await this.scheduleAlarm();
 	}
 
 	private async handleJoin(ws: WebSocket, msg: Extract<ClientMessage, { type: 'join' }>) {
@@ -388,6 +390,8 @@ export class PokerRoom extends DurableObject<Env> {
 			ws.close(1008, 'Removed from game');
 			return;
 		}
+
+		await this.pruneStalePlayers();
 
 		const name = sanitizeName(msg.name) || 'Anonymous';
 		const role: Role = msg.role === 'spectator' ? 'spectator' : 'player';
@@ -422,7 +426,6 @@ export class PokerRoom extends DurableObject<Env> {
 			await this.ctx.storage.put('moderatorId', this.moderatorId);
 		}
 
-		this.pruneStalePlayers();
 		await this.persistPlayers();
 
 		this.send(ws, { type: 'joined', playerId: player.id, secret: player.secret });
@@ -435,7 +438,7 @@ export class PokerRoom extends DurableObject<Env> {
 			this.round.phase = 'countdown';
 			this.round.countdownEndsAt = Date.now() + REVEAL_COUNTDOWN_MS;
 			await this.persistRound();
-			await this.ctx.storage.setAlarm(this.round.countdownEndsAt);
+			await this.scheduleAlarm();
 		} else {
 			await this.finalizeReveal();
 		}
@@ -498,6 +501,7 @@ export class PokerRoom extends DurableObject<Env> {
 		const ids = new Set<string>();
 		const now = Date.now();
 		for (const ws of this.ctx.getWebSockets()) {
+			if (ws.readyState !== WebSocket.OPEN) continue;
 			if (now - (this.lastPing.get(ws) ?? now) > HEARTBEAT_TIMEOUT_MS) continue;
 			const att = ws.deserializeAttachment() as { playerId: string } | null;
 			if (att) ids.add(att.playerId);
@@ -527,26 +531,34 @@ export class PokerRoom extends DurableObject<Env> {
 			ws.close(4002, 'Heartbeat timeout');
 			const playerId = (ws.deserializeAttachment() as { playerId: string } | null)?.playerId;
 			const player = playerId ? this.players.get(playerId) : undefined;
-			if (player && !this.onlineIds().has(player.id)) player.lastSeen = now;
+			if (player && player.lastSeen === 0 && !this.onlineIds().has(player.id))
+				player.lastSeen = now;
 		}
 		await this.persistPlayers();
 		this.broadcast();
+		await this.scheduleAlarm();
 	}
 
-	private pruneStalePlayers() {
+	private async pruneStalePlayers() {
+		let changed = false;
 		const online = this.onlineIds();
 		const now = Date.now();
 		for (const [id, p] of this.players) {
-			if (
-				!online.has(id) &&
-				id !== this.moderatorId &&
-				p.lastSeen > 0 &&
-				now - p.lastSeen > STALE_PLAYER_MS
-			) {
+			if (!online.has(id) && p.lastSeen > 0 && now - p.lastSeen >= STALE_PLAYER_MS) {
 				this.players.delete(id);
 				delete this.round.votes[id];
+				if (id === this.moderatorId) this.moderatorId = null;
+				changed = true;
 			}
 		}
+		if (changed) {
+			await this.ctx.storage.put({
+				players: Object.fromEntries(this.players),
+				round: this.round,
+				moderatorId: this.moderatorId
+			});
+		}
+		return changed;
 	}
 
 	private snapshotFor(playerId: string): RoomSnapshot {
@@ -587,6 +599,7 @@ export class PokerRoom extends DurableObject<Env> {
 
 	private broadcast() {
 		for (const ws of this.ctx.getWebSockets()) {
+			if (ws.readyState !== WebSocket.OPEN) continue;
 			const att = ws.deserializeAttachment() as { playerId: string } | null;
 			if (att) this.send(ws, { type: 'state', state: this.snapshotFor(att.playerId) });
 		}
@@ -608,13 +621,25 @@ export class PokerRoom extends DurableObject<Env> {
 		await this.ctx.storage.put('players', Object.fromEntries(this.players));
 	}
 
-	/** Record activity and keep the expiry alarm 30 days out (unless a countdown owns the alarm). */
+	/** Record room activity without postponing earlier countdown or cleanup deadlines. */
 	private async touch() {
-		const now = Date.now();
-		await this.ctx.storage.put('lastActivity', now);
-		if (this.round.phase !== 'countdown') {
-			await this.ctx.storage.setAlarm(now + EXPIRY_MS);
+		await this.ctx.storage.put('lastActivity', Date.now());
+		await this.scheduleAlarm();
+	}
+
+	private async scheduleAlarm() {
+		const lastActivity = ((await this.ctx.storage.get('lastActivity')) as number) ?? 0;
+		let deadline = lastActivity + EXPIRY_MS;
+		if (this.round.phase === 'countdown' && this.round.countdownEndsAt !== null) {
+			deadline = Math.min(deadline, this.round.countdownEndsAt);
 		}
+		const online = this.onlineIds();
+		for (const player of this.players.values()) {
+			if (player.lastSeen > 0 && !online.has(player.id)) {
+				deadline = Math.min(deadline, player.lastSeen + STALE_PLAYER_MS);
+			}
+		}
+		await this.ctx.storage.setAlarm(deadline);
 	}
 }
 

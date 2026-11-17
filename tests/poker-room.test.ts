@@ -615,6 +615,122 @@ describe('PokerRoom', () => {
 		alice.close();
 	});
 
+	for (const moderated of [false, true]) {
+		it(`automatically cleans up a player offline for 24 hours (moderated: ${moderated})`, async () => {
+			const stub = await createRoom(`cleanup-${moderated}`, { moderated });
+			const alice = await join(stub, 'Alice');
+			const joined = await alice.next();
+			if (joined.type !== 'joined') throw new Error('expected joined');
+			await alice.nextState();
+			alice.send({ type: 'vote', card: '5' });
+			await alice.nextState();
+			const bob = await join(stub, 'Bob');
+			await bob.nextState();
+			await alice.nextState();
+			alice.close();
+			const offline = await bob.nextState();
+			const lastSeen = offline.players.find((p) => p.id === joined.playerId)!.lastSeen;
+			await runInDurableObject(stub, async (instance, state) => {
+				expect(await state.storage.getAlarm()).toBeLessThanOrEqual(lastSeen + 86_400_000);
+				const room = instance as unknown as { players: Map<string, { lastSeen: number }> };
+				room.players.get(joined.playerId)!.lastSeen = Date.now() - 86_400_000;
+			});
+			expect(await runDurableObjectAlarm(stub)).toBe(true);
+			const cleaned = await bob.nextState();
+			expect(cleaned.players.map((p) => p.name)).toEqual(['Bob']);
+			await runInDurableObject(stub, async (_instance, state) => {
+				expect(await state.storage.get<Record<string, unknown>>('players')).not.toHaveProperty(
+					joined.playerId
+				);
+				const round = await state.storage.get<{ votes: Record<string, string> }>('round');
+				expect(round!.votes).not.toHaveProperty(joined.playerId);
+				expect(await state.storage.get('moderatorId')).not.toBe(joined.playerId);
+				expect((await state.storage.get('banned')) ?? []).toEqual([]);
+			});
+			if (moderated) {
+				bob.send({ type: 'claimModerator' });
+				expect((await bob.nextState()).players[0].isModerator).toBe(true);
+			}
+			bob.close();
+		});
+	}
+
+	it('restores identity and vote when reconnecting before cleanup', async () => {
+		const stub = await createRoom('cleanup-reconnect', { moderated: true });
+		const alice = await join(stub, 'Alice');
+		const joined = await alice.next();
+		if (joined.type !== 'joined') throw new Error('expected joined');
+		await alice.nextState();
+		alice.send({ type: 'vote', card: '5' });
+		await alice.nextState();
+		const bob = await join(stub, 'Bob');
+		await bob.nextState();
+		await alice.nextState();
+		alice.close();
+		await bob.nextState();
+		const res = await stub.fetch('https://test/ws', { headers: { Upgrade: 'websocket' } });
+		const returning = new TestClient(res.webSocket!);
+		returning.send({
+			type: 'join',
+			name: 'Alice',
+			role: 'player',
+			playerId: joined.playerId,
+			secret: joined.secret
+		});
+		expect(await returning.next()).toEqual(joined);
+		const restored = await returning.nextState();
+		expect(restored.players.find((p) => p.id === joined.playerId)).toMatchObject({
+			online: true,
+			lastSeen: 0,
+			vote: '5',
+			isModerator: true
+		});
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now() + 86_400_000);
+		});
+		returning.close();
+		bob.close();
+	});
+
+	it('keeps the cleanup deadline through activity and a reveal countdown', async () => {
+		const stub = await createRoom('cleanup-countdown', { revealCountdown: true });
+		const alice = await join(stub, 'Alice');
+		const joined = await alice.next();
+		if (joined.type !== 'joined') throw new Error('expected joined');
+		await alice.nextState();
+		const bob = await join(stub, 'Bob');
+		await bob.nextState();
+		await alice.nextState();
+		alice.close();
+		await bob.nextState();
+		const cleanupAt = Date.now() + 60_000;
+		await runInDurableObject(stub, (instance) => {
+			const room = instance as unknown as { players: Map<string, { lastSeen: number }> };
+			room.players.get(joined.playerId)!.lastSeen = cleanupAt - 86_400_000;
+		});
+		bob.send({ type: 'vote', card: '3' });
+		await bob.nextState();
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBe(cleanupAt);
+		});
+		bob.send({ type: 'reveal' });
+		expect((await bob.nextState()).phase).toBe('countdown');
+		let lastActivity: number | undefined;
+		await runInDurableObject(stub, async (instance, state) => {
+			expect(await state.storage.getAlarm()).toBeLessThan(cleanupAt);
+			lastActivity = await state.storage.get<number>('lastActivity');
+			const room = instance as unknown as { round: { countdownEndsAt: number } };
+			room.round.countdownEndsAt = Date.now() - 100;
+		});
+		await runDurableObjectAlarm(stub);
+		expect((await bob.nextState()).phase).toBe('revealed');
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBe(cleanupAt);
+			expect(await state.storage.get('lastActivity')).toBe(lastActivity);
+		});
+		bob.close();
+	});
+
 	it('wipes an expired room via its alarm', async () => {
 		const stub = await createRoom('room-expiry');
 		const alice = await join(stub, 'Alice');
