@@ -20,7 +20,7 @@
 		"test:watch": "vitest"
 	},
 	"dependencies": {
-		"posthog-js": "^1.250.0",
+		"posthog-js": "^1.450.0",
 		"posthog-node": "^4.16.0"
 	},
 	"devDependencies": {
@@ -28,8 +28,8 @@
 		"@fontsource-variable/outfit": "^5.2.8",
 		"@iconify-json/lucide": "^1.2.116",
 		"@playwright/test": "^1.61.1",
-		"@sveltejs/adapter-cloudflare": "^7.2.8",
-		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/adapter-cloudflare": "^7.2.10",
+		"@sveltejs/kit": "^2.70.4",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.3.0",
 		"@types/node": "^26.1.1",
