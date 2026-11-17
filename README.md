@@ -1,8 +1,9 @@
 # Tally
 
-Real-time planning poker on Cloudflare. Create a game, share the link, and estimate
-together without accounts. Choose a preset or custom deck, join as a player or
-spectator, and review results and voting history.
+Real-time planning poker hosted on Cloudflare Workers, with Durable Objects
+powering real-time rooms and persistent state. Create a game, share the link, and
+estimate together without accounts. Choose a preset or custom deck, join as a
+player or spectator, and review results and voting history.
 
 ![Tally demo room with six players and revealed estimates](docs/images/tally-demo.png)
 
