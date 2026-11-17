@@ -136,3 +136,71 @@ test('a kicked player is removed and cannot rejoin', async ({ browser, request }
 	await expect(bob.getByText('You were removed from this game.')).toBeVisible();
 	await close();
 });
+
+test('seat labels face away from the table and keep cards aligned', async ({
+	browser,
+	request
+}) => {
+	const roomId = await createRoom(request, {
+		roomName: 'Sprint planning',
+		deck: ['0', '1', '2', '3', '5', '8', '13', '21', '?']
+	});
+	const names = ['Alex', 'Jamie', 'Sam', 'Taylor', 'Morgan', 'Jordan'];
+	const contexts = await Promise.all(names.map(() => browser.newContext({ deviceScaleFactor: 2 })));
+	const pages: Page[] = [];
+	try {
+		for (const [index, name] of names.entries()) {
+			const page = await contexts[index].newPage();
+			await joinRoom(page, roomId, name);
+			pages.push(page);
+		}
+		const host = pages[0];
+		await host.setViewportSize({ width: 1280, height: 800 });
+		for (const votes of [
+			['5', '5', '3', '8', '5', '5'],
+			['5', '5', '8', '3', '5', '5']
+		]) {
+			for (const [index, vote] of votes.entries()) {
+				await pages[index].getByRole('button', { name: vote, exact: true }).click();
+			}
+			await expect(host.getByText('6 of 6 voted')).toBeVisible();
+			await host.getByRole('button', { name: 'Reveal cards' }).click();
+			await expect(seatOf(host, 'Sam')).toContainText(votes[2] === '3' ? 'lowest' : 'highest');
+			await expect(seatOf(host, 'Taylor')).toContainText(votes[3] === '3' ? 'lowest' : 'highest');
+			for (const row of [
+				names.filter((_, index) => index % 2 === 0),
+				names.filter((_, index) => index % 2 === 1)
+			]) {
+				const cards = await Promise.all(
+					row.map((name) => seatOf(host, name).locator('.flip-scene').boundingBox())
+				);
+				expect(
+					Math.max(...cards.map((card) => card!.y)) - Math.min(...cards.map((card) => card!.y))
+				).toBeLessThan(1);
+			}
+			const samCard = await seatOf(host, 'Sam').locator('.flip-scene').boundingBox();
+			const samLabel = await seatOf(host, 'Sam')
+				.getByText(/lowest|highest/)
+				.boundingBox();
+			expect(samLabel!.y + samLabel!.height).toBeLessThanOrEqual(samCard!.y);
+			const taylorName = await seatOf(host, 'Taylor')
+				.getByText('Taylor', { exact: true })
+				.boundingBox();
+			const taylorLabel = await seatOf(host, 'Taylor')
+				.getByText(/lowest|highest/)
+				.boundingBox();
+			expect(taylorLabel!.y).toBeGreaterThanOrEqual(taylorName!.y + taylorName!.height);
+			if (process.env.UPDATE_README_SCREENSHOT && votes[2] === '3') {
+				await host.evaluate(() => document.fonts.ready);
+				await host.screenshot({
+					path: 'docs/images/tally-demo.png',
+					scale: 'device',
+					animations: 'disabled'
+				});
+			}
+			await host.getByRole('button', { name: 'Start next round' }).click();
+		}
+	} finally {
+		await Promise.all(contexts.map((context) => context.close()));
+	}
+});

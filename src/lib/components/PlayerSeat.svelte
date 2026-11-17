@@ -11,6 +11,7 @@
 		revealed,
 		isYou,
 		outlier = null,
+		position = 'bottom',
 		canMakeModerator = false,
 		onmakemoderator,
 		onkick
@@ -19,6 +20,7 @@
 		revealed: boolean;
 		isYou: boolean;
 		outlier?: 'high' | 'low' | null;
+		position?: 'top' | 'bottom';
 		canMakeModerator?: boolean;
 		onmakemoderator?: () => void;
 		onkick?: () => void;
@@ -101,7 +103,8 @@
 	</div>
 
 	{#if revealed && outlier}
-		<span class="inline-flex items-center gap-0.5 text-sm font-medium text-accent">
+		<span class="inline-flex items-center gap-0.5 text-sm font-medium text-accent"
+			class:-order-1={position === 'top'}>
 			{#if outlier === 'high'}
 				<IconArrowUp class="size-3.5" /> highest
 			{:else}
@@ -109,6 +112,6 @@
 			{/if}
 		</span>
 	{:else if !player.online}
-		<span class="text-sm text-muted">away</span>
+		<span class="text-sm text-muted" class:-order-1={position === 'top'}>away</span>
 	{/if}
 </div>

@@ -457,6 +457,7 @@
 			<div class="flex min-h-24 flex-wrap items-end justify-center gap-3">
 				{#each topSeats as player (player.id)}
 					<PlayerSeat
+						position="top"
 						{player}
 						{revealed}
 						isYou={player.id === snap.you}
