@@ -71,3 +71,8 @@ Manual deploy:
 ```sh
 pnpm build && pnpm exec wrangler deploy
 ```
+
+## License
+
+Tally is licensed under the [MIT License](LICENSE). Third-party dependencies,
+fonts, and icons retain their own licenses.
