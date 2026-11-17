@@ -34,6 +34,28 @@ async function twoPlayers(browser: Browser, roomId: string) {
 
 const seatOf = (page: Page, name: string) => page.locator('.deal-in', { hasText: name });
 
+test('the join form waits for hydration before accepting input', async ({ page, request }) => {
+	const roomId = await createRoom(request);
+	let releaseScripts!: () => void;
+	const scriptsReady = new Promise<void>((resolve) => (releaseScripts = resolve));
+	await page.route('**/_app/immutable/**/*.js', async (route) => {
+		await scriptsReady;
+		await route.continue();
+	});
+
+	await page.goto(`/room/${roomId}`, { waitUntil: 'commit' });
+	try {
+		await expect(page.getByLabel('Your name')).toBeDisabled();
+		await expect(page.getByRole('button', { name: 'Join the game' })).toBeDisabled();
+	} finally {
+		releaseScripts();
+	}
+
+	await page.getByLabel('Your name').fill('Alice');
+	await page.getByRole('button', { name: 'Join the game' }).click();
+	await expect(page.getByText('Playing as Alice')).toBeVisible();
+});
+
 test('two players join and see each other', async ({ browser, request }) => {
 	const roomId = await createRoom(request);
 	const { alice, bob, close } = await twoPlayers(browser, roomId);

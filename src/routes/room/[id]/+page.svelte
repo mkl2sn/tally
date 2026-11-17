@@ -33,6 +33,7 @@
 	let { data }: PageProps = $props();
 
 	let conn = $state<RoomConnection | null>(null);
+	let readyToJoin = $state(false);
 	let name = $state('');
 	let joinAsSpectator = $state(false);
 	let historyOpen = $state(false);
@@ -64,6 +65,8 @@
 		} else {
 			posthog.capture('join_screen_viewed', { room_id: data.roomId });
 		}
+		// Enable the form only after hydration and stored-profile restoration.
+		readyToJoin = true;
 		const interval = setInterval(() => (now = Date.now()), 300);
 		return () => clearInterval(interval);
 	});
@@ -293,26 +296,28 @@
 				<a href="/" aria-label="Tally home"><Logo size={34} wordmark /></a>
 			</div>
 			<form onsubmit={join} class="grid gap-4 rounded-2xl border border-line bg-surface p-6 shadow-sm">
-				<div>
-					<h1 class="text-2xl font-bold">{data.roomName}</h1>
-					<p class="mt-1 text-sm text-muted">You're invited. What should we call you?</p>
-				</div>
-				<label class="grid gap-1.5">
-					<span class="text-sm font-medium">Your name</span>
-					<!-- svelte-ignore a11y_autofocus -->
-					<input
-						bind:value={name}
-						required
-						autofocus
-						maxlength={MAX_NAME_LENGTH}
-						placeholder="Ada Lovelace"
-						class="field"
-					/>
-				</label>
-				<Switch bind:checked={joinAsSpectator} label="Join as spectator" />
-				<button type="submit" class="btn btn-primary">
-					{joinAsSpectator ? 'Watch the game' : 'Join the game'}
-				</button>
+				<fieldset disabled={!readyToJoin} class="grid min-w-0 gap-4">
+					<div>
+						<h1 class="text-2xl font-bold">{data.roomName}</h1>
+						<p class="mt-1 text-sm text-muted">You're invited. What should we call you?</p>
+					</div>
+					<label class="grid gap-1.5">
+						<span class="text-sm font-medium">Your name</span>
+						<!-- svelte-ignore a11y_autofocus -->
+						<input
+							bind:value={name}
+							required
+							autofocus
+							maxlength={MAX_NAME_LENGTH}
+							placeholder="Ada Lovelace"
+							class="field"
+						/>
+					</label>
+					<Switch bind:checked={joinAsSpectator} label="Join as spectator" />
+					<button type="submit" class="btn btn-primary">
+						{joinAsSpectator ? 'Watch the game' : 'Join the game'}
+					</button>
+				</fieldset>
 			</form>
 		</div>
 	</div>
