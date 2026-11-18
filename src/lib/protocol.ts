@@ -83,6 +83,8 @@ export interface RoomSnapshot {
 	deck: string[];
 	phase: Phase;
 	round: number;
+	/** Server epoch time when this snapshot was created. */
+	serverNow: number;
 	countdownEndsAt: number | null;
 	autoReveal: boolean;
 	revealCountdown: boolean;
